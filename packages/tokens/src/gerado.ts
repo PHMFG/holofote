@@ -1,6 +1,6 @@
 // GERADO por scripts/gerar.ts a partir de figma/variaveis.json. Não edite à mão.
 
-export const ASSINATURA_FIGMA = 'e663303c';
+export const ASSINATURA_FIGMA = '3eece74e';
 
 export const neutros = {
   "claro": {
@@ -9,7 +9,7 @@ export const neutros = {
     "superficie2": "#e2e3e3",
     "linha": "#d6d8d8",
     "texto": "#2a2c2c",
-    "textoSuave": "#676b6b",
+    "textoSuave": "#5f6363",
     "textoFraco": "#b3b6b6",
     "primario": "#141515",
     "primarioTexto": "#f6f6f6",

@@ -1,14 +1,15 @@
-import type { NomeCor, NomeGradiente, NomeSombra } from '@holofote/tokens';
+import type { NomeGradiente, NomeSombra } from '@holofote/tokens';
 import type { ReactNode } from 'react';
 import type { ViewProps } from 'react-native';
 import { Camada } from './Camada';
+import type { CorDeTexto } from './Texto';
 
 export type TomEsfera = 'escuro' | 'claro' | 'medio';
 
 // Avatar 12:10 no Figma: Escuro usa Esfera preta + sombra Esfera; Claro e Médio usam sombra Esfera clara.
 const ESTILOS: Record<
   TomEsfera,
-  { gradiente: NomeGradiente; sombra: NomeSombra; conteudo: NomeCor }
+  { gradiente: NomeGradiente; sombra: NomeSombra; conteudo: CorDeTexto }
 > = {
   escuro: { gradiente: 'esferaPreta', sombra: 'esfera', conteudo: 'primarioTexto' },
   claro: { gradiente: 'esferaClara', sombra: 'esferaClara', conteudo: 'texto' },
@@ -16,7 +17,7 @@ const ESTILOS: Record<
 };
 
 /** Cor de texto ou ícone por cima de uma esfera do tom dado. */
-export function corSobreEsfera(tom: TomEsfera): NomeCor {
+export function corSobreEsfera(tom: TomEsfera): CorDeTexto {
   return ESTILOS[tom].conteudo;
 }
 

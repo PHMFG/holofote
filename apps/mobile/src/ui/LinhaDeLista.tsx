@@ -6,7 +6,7 @@ import { Texto } from './Texto';
 export interface LinhaDeListaProps {
   titulo: string;
   subtitulo?: string;
-  /** Terceira linha mais fraca (14 · Mensagens: relação atual). */
+  /** Terceira linha (14 · Mensagens: relação atual), em texto-suave para passar de 4,5:1. */
   detalhe?: string;
   /** Avatar ou esfera à esquerda. */
   inicio?: ReactNode;
@@ -61,7 +61,7 @@ export function LinhaDeLista(p: LinhaDeListaProps) {
         </View>
       )}
       {p.detalhe && (
-        <Texto estilo="legenda" cor="textoFraco" numberOfLines={1}>
+        <Texto estilo="legenda" cor="textoSuave" numberOfLines={1}>
           {p.detalhe}
         </Texto>
       )}

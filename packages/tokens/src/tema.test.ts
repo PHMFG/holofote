@@ -9,7 +9,8 @@ const NEUTROS_PLANO = {
     superficie2: '#e2e3e3',
     linha: '#d6d8d8',
     texto: '#2a2c2c',
-    textoSuave: '#676b6b',
+    // #676b6b no plano; escurecido para passar de 4,5:1 sobre superficie-2 (docs/DECISOES.md).
+    textoSuave: '#5f6363',
     textoFraco: '#b3b6b6',
     primario: '#141515',
     primarioTexto: '#f6f6f6',

@@ -1,11 +1,11 @@
 import type { NomeCor } from '@holofote/tokens';
 import { StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/ProvedorTema';
-import { Texto } from './Texto';
+import { Texto, type CorDeTexto } from './Texto';
 
 export type VarianteRotulo = 'neutro' | 'destaque' | 'data';
 
-const APARENCIA: Record<VarianteRotulo, { fundo: NomeCor; texto: NomeCor }> = {
+const APARENCIA: Record<VarianteRotulo, { fundo: NomeCor; texto: CorDeTexto }> = {
   neutro: { fundo: 'superficie2', texto: 'textoSuave' },
   destaque: { fundo: 'destaqueSuave', texto: 'destaqueTinta' },
   data: { fundo: 'superficie2', texto: 'textoSuave' },
@@ -35,7 +35,7 @@ export interface RotuloSecaoProps {
   texto: string;
   /** Informação à direita, ex.: "decida em 0:24". */
   meta?: string;
-  corMeta?: NomeCor;
+  corMeta?: CorDeTexto;
 }
 
 /** Título de seção em Mini maiúsculo, com meta opcional à direita. */

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { useTema } from '../tema/ProvedorTema';
 import { Camada } from './Camada';
 import { Icone } from './Icone';
-import { Texto } from './Texto';
+import { Texto, type CorDeTexto } from './Texto';
 
 export type VarianteChip =
   'linha' | 'tracejado' | 'afundado' | 'destaque' | 'suave' | 'primario' | 'elevado';
@@ -15,7 +15,7 @@ interface Aparencia {
   sombra?: NomeSombra;
   borda?: NomeCor;
   tracejado?: boolean;
-  texto: NomeCor;
+  texto: CorDeTexto;
 }
 
 const APARENCIAS: Record<VarianteChip, Aparencia> = {

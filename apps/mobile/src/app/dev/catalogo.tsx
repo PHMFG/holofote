@@ -46,7 +46,7 @@ export default function Catalogo() {
       <Controles />
       {HISTORIAS.map(({ titulo, figma, Exemplo }) => (
         <Fragment key={titulo}>
-          <RotuloSecao texto={titulo} meta={`Figma ${figma}`} corMeta="textoFraco" />
+          <RotuloSecao texto={titulo} meta={`Figma ${figma}`} corMeta="textoSuave" />
           <Exemplo />
         </Fragment>
       ))}

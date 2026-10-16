@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+*.log
+.DS_Store
+
+# Segredos: só .env.example vai para o git
+.env
+.env.*
+!.env.example
+
+# Expo: ios/ e android/ são gerados pelo prebuild (CNG)
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/expo-env.d.ts
+
+.claude/worktrees/

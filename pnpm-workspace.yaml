@@ -7,6 +7,7 @@ nodeLinker: hoisted
 
 # Scripts de instalação liberados um a um (pnpm 11 bloqueia por padrão).
 allowBuilds:
+  '@parcel/watcher': false
   esbuild: true
   msgpackr-extract: false
   unrs-resolver: false
@@ -25,3 +26,5 @@ minimumReleaseAgeExclude:
   - react-native@0.88.0
   - expo-glass-effect@58.0.4
   - expo-router@58.0.21
+  - react-native-svg@15.16.0
+  - jest-expo@58.0.11

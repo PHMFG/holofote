@@ -29,7 +29,4 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-font', { ios: { fonts: fontes } }],
     './plugins/caminho-utf8.js',
   ],
-  experiments: {
-    typedRoutes: true,
-  },
 });

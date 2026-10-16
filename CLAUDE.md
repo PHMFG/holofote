@@ -20,7 +20,8 @@ Rede social em que só o jogador é humano; o elenco é IA. Plano completo: docs
 ## Comandos
 
 - pnpm dev (Docker, API, worker, Metro)
-- pnpm test, pnpm typecheck, pnpm lint
+- pnpm test (Vitest nos pacotes Node e Jest no app), pnpm typecheck, pnpm lint
+- pnpm --filter @holofote/tokens gerar (regenera os tokens a partir de packages/tokens/figma/variaveis.json)
 - pnpm infra:langfuse (sobe o Langfuse local, que não entra no pnpm dev)
 - pnpm evals (usa a chave real; rodar só ao mudar prompt ou modelo)
 - maestro test maestro/
@@ -32,6 +33,12 @@ Rede social em que só o jogador é humano; o elenco é IA. Plano completo: docs
 - O app usa CNG: `apps/mobile/ios` é gerado por `expo prebuild` e não vai para o git. Configuração nativa só em `app.config.ts` e plugins.
 - O caminho do projeto tem acentos (`Programação`): o plugin `apps/mobile/plugins/caminho-utf8.js` mantém o `pod install` funcionando. Rode builds com `LANG=en_US.UTF-8`.
 - API em http://localhost:3333/v1, Metro em 8081, Langfuse em 3000.
+
+## Design system
+
+- Tokens: `packages/tokens` (`montarTema(modo, destaque)`). Para atualizar do Figma, rode `packages/tokens/figma/exportar.js` pelo `use_figma`, salve o retorno em `figma/variaveis.json` e rode `gerar`.
+- Componentes em `apps/mobile/src/ui`, um arquivo cada, mais `<Nome>.historia.tsx`. Use `Camada` para fundo, gradiente e sombra, `Texto` para texto e `Icone` para ícones do lucide.
+- Catálogo: `holofote://dev/catalogo` (só em desenvolvimento). Especificação dos componentes no Figma: docs/COMPONENTES.md.
 
 ## Como trabalhar
 

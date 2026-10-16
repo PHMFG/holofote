@@ -3,3 +3,5 @@ docs/PLANO.md
 apps/mobile/ios
 apps/mobile/android
 apps/mobile/.expo
+packages/tokens/src/gerado.ts
+packages/tokens/figma/variaveis.json

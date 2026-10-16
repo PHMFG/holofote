@@ -15,6 +15,8 @@ export default defineConfig([
     'apps/mobile/ios/',
     'apps/mobile/android/',
     'apps/mobile/expo-env.d.ts',
+    // Roda no Plugin API do Figma (global `figma`, return no topo), não no Node.
+    'packages/tokens/figma/',
   ]),
   {
     // Node: server, worker, pacotes e arquivos de configuração da raiz.

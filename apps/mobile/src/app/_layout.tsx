@@ -1,11 +1,10 @@
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { ProvedorTema } from '../tema/ProvedorTema';
 
 export default function LayoutRaiz() {
   return (
-    <>
+    <ProvedorTema>
       <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="auto" />
-    </>
+    </ProvedorTema>
   );
 }

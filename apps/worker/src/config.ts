@@ -3,7 +3,12 @@ import { z } from 'zod';
 
 const esquema = z.object({
   REDIS_URL: z.url({ protocol: /^rediss?$/ }).default('redis://localhost:6379'),
+  DATABASE_URL: z
+    .url({ protocol: /^postgres(ql)?$/ })
+    .default('postgres://holofote:holofote@localhost:5432/holofote'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  /** Quando roda o lote diário de cada mundo (cron, em UTC). */
+  LOTE_CRON: z.string().trim().min(1).default('30 4 * * *'),
 });
 
 export type Config = z.infer<typeof esquema>;

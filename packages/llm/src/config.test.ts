@@ -16,7 +16,7 @@ describe('lerConfigLlm', () => {
       userAgent: 'holofote-server/0.1',
       modelos: {
         diretor: 'deepseek-v4.1-flash',
-        principal: 'deepseek-v4-pro',
+        principal: 'deepseek-v4.1-flash',
         lote: 'mimo-v2.6-flash',
         reserva: 'glm-5.3-flash',
       },

@@ -99,8 +99,8 @@ describe('chamarJob', () => {
   it('usa o max_tokens e o modelo de cada job', async () => {
     const esperado: Record<NomeJob, [string, number]> = {
       diretor: ['deepseek-v4.1-flash', 1200],
-      dm: ['deepseek-v4-pro', 500],
-      discurso: ['deepseek-v4-pro', 900],
+      dm: ['deepseek-v4.1-flash', 500],
+      discurso: ['deepseek-v4.1-flash', 900],
       criar_mundo: ['mimo-v2.6-flash', 5000],
       feed_inicial: ['mimo-v2.6-flash', 4500],
       lote_diario: ['mimo-v2.6-flash', 5000],
@@ -133,9 +133,10 @@ describe('chamarJob', () => {
     const { provedor, chamar } = montar([dmOk, dmOk]);
     await chamar('dm', { ...EXEMPLOS.dm, personagem: reator(MARI, 'conversa') });
     await chamar('dm', EXEMPLOS.dm);
+    // Os dois papéis usam o Flash hoje (decisão do dono); o teste confere o papel de cada um.
     expect(provedor.pedidos.map((p) => p.modelo)).toEqual([
-      'deepseek-v4.1-flash',
-      'deepseek-v4-pro',
+      config.modelos.diretor,
+      config.modelos.principal,
     ]);
   });
 

@@ -50,16 +50,16 @@ Depois das regras vem `BÍBLIA DO MUNDO` e a bíblia. No `criar_mundo` ainda nã
 
 ## Jobs
 
-| Job            | Papel do modelo                           | Modelo padrão                          | `max_tokens` | Quando roda                                     |
-| -------------- | ----------------------------------------- | -------------------------------------- | ------------ | ----------------------------------------------- |
-| `diretor`      | diretor                                   | deepseek-v4.1-flash                    | 500          | post, comentário, resposta a história           |
-| `dm`           | principal (elenco) ou diretor (figurante) | deepseek-v4-pro ou deepseek-v4.1-flash | 250          | cada mensagem do jogador                        |
-| `discurso`     | principal                                 | deepseek-v4-pro                        | 400          | escolha no evento ao vivo                       |
-| `criar_mundo`  | lote                                      | mimo-v2.6-flash                        | 2.500        | mundo novo                                      |
-| `feed_inicial` | lote                                      | mimo-v2.6-flash                        | 2.500        | logo depois do `criar_mundo`                    |
-| `lote_diario`  | lote                                      | mimo-v2.6-flash                        | 2.500        | madrugada (04h30 UTC)                           |
-| `memoria`      | lote                                      | mimo-v2.6-flash                        | 800          | junto do lote, personagens com 8+ eventos novos |
-| `ficha`        | lote                                      | mimo-v2.6-flash                        | 300          | personagem novo (recompensa de marco)           |
+| Job            | Papel do modelo                           | Modelo padrão       | `max_tokens` | Quando roda                                     |
+| -------------- | ----------------------------------------- | ------------------- | ------------ | ----------------------------------------------- |
+| `diretor`      | diretor                                   | deepseek-v4.1-flash | 500          | post, comentário, resposta a história           |
+| `dm`           | principal (elenco) ou diretor (figurante) | deepseek-v4.1-flash | 250          | cada mensagem do jogador                        |
+| `discurso`     | principal                                 | deepseek-v4.1-flash | 400          | escolha no evento ao vivo                       |
+| `criar_mundo`  | lote                                      | mimo-v2.6-flash     | 2.500        | mundo novo                                      |
+| `feed_inicial` | lote                                      | mimo-v2.6-flash     | 2.500        | logo depois do `criar_mundo`                    |
+| `lote_diario`  | lote                                      | mimo-v2.6-flash     | 2.500        | madrugada (04h30 UTC)                           |
+| `memoria`      | lote                                      | mimo-v2.6-flash     | 800          | junto do lote, personagens com 8+ eventos novos |
+| `ficha`        | lote                                      | mimo-v2.6-flash     | 300          | personagem novo (recompensa de marco)           |
 
 A reserva de todos é `glm-5.3-flash`. O job `memoria` não estava na lista de schemas pedida, mas está na tabela de tetos do plano; tem schema e prompt próprios (o `lote_diario` também pode devolver memórias).
 

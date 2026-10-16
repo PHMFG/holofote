@@ -9,6 +9,9 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@holofote/db": "workspace:*",
+    "@holofote/engine": "workspace:*",
+    "@holofote/llm": "workspace:*",
     "@holofote/shared": "workspace:*",
     "bullmq": "^6.3.15",
     "ioredis": "^5.11.1",

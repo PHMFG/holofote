@@ -8,7 +8,29 @@ on:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: holofote
+          POSTGRES_PASSWORD: holofote
+          POSTGRES_DB: holofote_teste
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U holofote -d holofote_teste"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL_TESTE: postgres://holofote:holofote@localhost:5432/holofote_teste
+      DATABASE_URL_TESTE_API: postgres://holofote:holofote@localhost:5432/holofote_teste_api
+      DATABASE_URL_TESTE_WORKER: postgres://holofote:holofote@localhost:5432/holofote_teste_worker
+      REDIS_URL: redis://localhost:6379
+      LLM_PROVIDER: falso
     steps:
       - uses: actions/checkout@v7
       # Versão do pnpm vem de packageManager no package.json da raiz.
@@ -18,7 +40,20 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # A API e o worker usam bancos próprios, separados do de packages/db.
+      - name: Bancos de teste da API e do worker
+        run: |
+          for banco in holofote_teste_api holofote_teste_worker; do
+            PGPASSWORD=holofote psql -h localhost -U holofote -d holofote_teste -c "create database $banco"
+            PGPASSWORD=holofote psql -h localhost -U holofote -d $banco -c "create extension if not exists vector"
+          done
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test
+      # A chave do OpenCode Go nunca pode ir para o bundle do app (docs/PLANO.md, segurança).
+      - name: Chave fora do app
+        run: |
+          if grep -rIEn "LLM_API_KEY|opencode\.ai/inference" apps/mobile/src; then
+            echo "Referência à IA encontrada no app" && exit 1
+          fi

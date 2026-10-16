@@ -27,3 +27,16 @@ describe('GET /v1/saude', () => {
     expect(resposta.json()).toEqual({ ok: false, postgres: 'ok', redis: 'erro' });
   });
 });
+
+describe('log', () => {
+  it('o pedido vai para o log sem a query string (token do WebSocket)', async () => {
+    const linhas: string[] = [];
+    const app = construirApp(
+      { postgres: ok, redis: ok },
+      { fastify: { logger: { level: 'info', stream: { write: (l: string) => linhas.push(l) } } } },
+    );
+    await app.inject({ method: 'GET', url: '/v1/saude?token=segredo-do-jogador' });
+    expect(linhas.some((l) => l.includes('"url":"/v1/saude"'))).toBe(true);
+    expect(linhas.join('\n')).not.toContain('segredo-do-jogador');
+  });
+});

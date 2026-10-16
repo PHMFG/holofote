@@ -18,6 +18,10 @@ export interface LinhaDeListaProps {
   separador?: boolean;
   /** Alertas alinham ao topo; o resto centraliza. */
   alinharAoTopo?: boolean;
+  /** Título em corpo regular e texto-suave, para o valor à direita ser o destaque (18 · Marco). */
+  tituloDiscreto?: boolean;
+  /** Linhas do título antes das reticências (1 por padrão; textos longos, como pendências, usam 2). */
+  linhasDoTitulo?: number;
   onPress?: () => void;
   /** Rótulo do VoiceOver quando o texto visível não basta. */
   rotuloAcessivel?: string;
@@ -44,7 +48,11 @@ export function LinhaDeLista(p: LinhaDeListaProps) {
       accessible={!p.onPress}
       accessibilityLabel={p.onPress ? undefined : rotulo}
     >
-      <Texto estilo="corpoForte" numberOfLines={1}>
+      <Texto
+        estilo={p.tituloDiscreto ? 'corpo' : 'corpoForte'}
+        cor={p.tituloDiscreto ? 'textoSuave' : 'texto'}
+        numberOfLines={p.linhasDoTitulo ?? 1}
+      >
         {p.titulo}
       </Texto>
       {p.subtitulo && (

@@ -1,3 +1,4 @@
+import { montarTema } from '@holofote/tokens';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { renderizar } from '../testes/renderizar';
 import { Post } from './Post';
@@ -38,6 +39,16 @@ describe('Post', () => {
     expect(screen.getByRole('text', { name: '12 respostas' })).toBeTruthy();
   });
 
+  it('Repostar e Salvar só aparecem com handler', async () => {
+    const { unmount } = await renderizar(<Post {...base} />);
+    expect(screen.queryByLabelText('4 reposts')).toBeNull();
+    expect(screen.queryByLabelText('Salvar')).toBeNull();
+    await unmount();
+    await renderizar(<Post {...base} onRepostar={() => {}} onSalvar={() => {}} />);
+    expect(screen.getByRole('button', { name: '4 reposts' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeTruthy();
+  });
+
   it('curtir chama o callback e a curtida ativa fica no destaque', async () => {
     const aoCurtir = jest.fn();
     await renderizar(<Post {...base} curtido onCurtir={aoCurtir} />);
@@ -45,6 +56,8 @@ describe('Post', () => {
     await fireEvent.press(curtir);
     expect(aoCurtir).toHaveBeenCalled();
     expect(curtir).toBeSelected();
-    expect(screen.getByText('7,1 mil')).toHaveStyle({ color: '#b23a0b' });
+    expect(screen.getByText('7,1 mil')).toHaveStyle({
+      color: montarTema('claro', 'laranja').cores.destaqueTinta,
+    });
   });
 });

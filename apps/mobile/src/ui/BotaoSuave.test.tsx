@@ -10,4 +10,14 @@ describe('BotaoSuave', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }));
     expect(aoTocar).toHaveBeenCalled();
   });
+
+  it('desabilitado não chama o toque e fica esmaecido', async () => {
+    const aoTocar = jest.fn();
+    await renderizar(<BotaoSuave icone={ArrowLeft} rotulo="Voltar" onPress={aoTocar} disabled />);
+    const botao = screen.getByRole('button', { name: 'Voltar' });
+    expect(botao).toBeDisabled();
+    expect(botao).toHaveStyle({ opacity: 0.4 });
+    await fireEvent.press(botao);
+    expect(aoTocar).not.toHaveBeenCalled();
+  });
 });

@@ -5,6 +5,7 @@ import { useTema } from '../tema/ProvedorTema';
 import { Avatar } from './Avatar';
 import type { TomEsfera } from './Esfera';
 import { Icone } from './Icone';
+import { PontosDigitando } from './PontosDigitando';
 import { Rotulo } from './Rotulo';
 import { Texto } from './Texto';
 import { Tocavel } from './Tocavel';
@@ -71,7 +72,12 @@ export function Comentario(p: ComentarioProps) {
             onPress={p.onCurtir}
           />
           {!aninhado && p.onResponder && (
-            <Pressable onPress={p.onResponder} accessibilityRole="button" hitSlop={8}>
+            <Pressable
+              onPress={p.onResponder}
+              accessibilityRole="button"
+              accessibilityLabel={`Responder a ${p.nome}`}
+              hitSlop={8}
+            >
               <Texto estilo="legenda" cor="destaqueTinta">
                 Responder
               </Texto>
@@ -132,9 +138,7 @@ export function Digitando({ nome, iniciais }: { nome: string; iniciais: string }
     <View style={estilos.digitando} accessible accessibilityLabel={`${nome} está digitando`}>
       <Avatar iniciais={iniciais} tamanho={28} />
       <View style={[estilos.bolha, { backgroundColor: cores.superficie2 }]}>
-        {(['textoSuave', 'textoFraco', 'textoFraco'] as const).map((cor, i) => (
-          <View key={i} style={[estilos.ponto, { backgroundColor: cores[cor] }]} />
-        ))}
+        <PontosDigitando />
       </View>
       <Texto estilo="legenda" cor="textoSuave">
         {nome} está digitando
@@ -166,7 +170,5 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
   },
-  ponto: { width: 6, height: 6, borderRadius: 3 },
 });

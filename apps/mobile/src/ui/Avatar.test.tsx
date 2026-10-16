@@ -1,3 +1,4 @@
+import { montarTema } from '@holofote/tokens';
 import { screen } from '@testing-library/react-native';
 import { renderizar } from '../testes/renderizar';
 import { Avatar } from './Avatar';
@@ -16,6 +17,8 @@ describe('Avatar', () => {
 
   it('as iniciais do jogador (esfera escura) usam primario-texto', async () => {
     await renderizar(<Avatar iniciais="LP" tom="escuro" />);
-    expect(screen.getByText('LP')).toHaveStyle({ color: '#f6f6f6' });
+    expect(screen.getByText('LP')).toHaveStyle({
+      color: montarTema('claro', 'laranja').cores.primarioTexto,
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { montarTema } from '@holofote/tokens';
 import { fireEvent, screen } from '@testing-library/react-native';
 import { renderizar } from '../testes/renderizar';
 import { Chip } from './Chip';
@@ -25,8 +26,17 @@ describe('Chip', () => {
       </>,
       { destaque: 'cobalto' },
     );
-    expect(screen.getByText('Escolhido')).toHaveStyle({ color: '#f6f6f6' });
-    expect(screen.getByText('Novas')).toHaveStyle({ color: '#ffffff' });
+    expect(screen.getByText('Escolhido')).toHaveStyle({
+      color: montarTema('claro', 'cobalto').cores.primarioTexto,
+    });
+    expect(screen.getByText('Novas')).toHaveStyle({
+      color: montarTema('claro', 'cobalto').cores.destaqueSobre,
+    });
+  });
+
+  it('o rótulo acessível substitui o texto visível', async () => {
+    await renderizar(<Chip rotulo="Ver" rotuloAcessivel="Ver respostas" onPress={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Ver respostas' })).toBeTruthy();
   });
 
   it('sem onPress não é botão', async () => {

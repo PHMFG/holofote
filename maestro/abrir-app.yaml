@@ -1,0 +1,18 @@
+# Abre o dev client já apontando para o Metro local (sem a tela de escolha de servidor).
+appId: app.holofote
+---
+- openLink: exp+holofote://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081&disableOnboarding=1&__expo_disable_onboarding=1&__expo_disable_fab=1
+- extendedWaitUntil:
+    visible:
+      text: '.*'
+    timeout: 60000
+# Depois de limpar o estado, o dev client abre o menu de desenvolvedor na primeira vez.
+- runFlow:
+    when:
+      visible: 'Go home'
+    commands:
+      - swipe:
+          start: 50%, 50%
+          end: 50%, 98%
+          duration: 300
+      - waitForAnimationToEnd

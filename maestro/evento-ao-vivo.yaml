@@ -1,0 +1,79 @@
+# Evento ao vivo: avança o relógio do mundo até as 18h05 do dia do evento (rota de desenvolvimento)
+# e captura a tela do evento já ao vivo (16) e o palco (17). Precisa de um mundo pronto.
+#
+# O fluxo pega o token pelo login anônimo do aparelho do simulador, então passe o id dele:
+#   APARELHO_ID=$(docker exec holofote-postgres-1 psql -U holofote -d holofote -tAc \
+#     "select aparelho_id from usuario order by criado_em desc limit 1")
+#   ~/.maestro/bin/maestro test -e APARELHO_ID=$APARELHO_ID maestro/evento-ao-vivo.yaml
+#
+# Os 30 segundos para escolher o discurso contam a partir da abertura do evento (o app desconta o
+# desvio do relógio de desenvolvimento); o fluxo segue depressa para a captura 17 sair com o
+# cronômetro correndo. Depois repete as duas capturas no tema escuro e volta ao tema do sistema.
+appId: app.holofote
+name: Evento ao vivo
+---
+- runFlow: abrir-app.yaml
+- runScript:
+    file: scripts/avancar-ate-o-evento.js
+    env:
+      APARELHO_ID: ${APARELHO_ID}
+# O relógio mudou de dia: o resumo da manhã abre sozinho.
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - tapOn: 'Começar o dia'
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+- tapOn: 'Jornada'
+- scrollUntilVisible:
+    element: '.*Dia [0-9]+, .*'
+    centerElement: true
+- tapOn: '.*Dia [0-9]+, .*'
+- extendedWaitUntil:
+    visible: 'Entrar ao vivo'
+    timeout: 15000
+- takeScreenshot: docs/telas/16-evento-ao-vivo-claro
+- tapOn: 'Entrar ao vivo'
+- extendedWaitUntil:
+    visible: 'Subir ao palco'
+    timeout: 15000
+- takeScreenshot: docs/telas/17-ao-vivo-claro
+
+# Escuro
+- tapOn: 'Fechar'
+- tapOn: 'Voltar'
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Escuro'
+- tapOn: 'Voltar'
+- tapOn: 'Jornada'
+- scrollUntilVisible:
+    element: '.*Dia [0-9]+, .*'
+    centerElement: true
+- tapOn: '.*Dia [0-9]+, .*'
+- extendedWaitUntil:
+    visible: 'Entrar ao vivo'
+    timeout: 15000
+- takeScreenshot: docs/telas/16-evento-ao-vivo-escuro
+- tapOn: 'Entrar ao vivo'
+- extendedWaitUntil:
+    visible: 'Subir ao palco'
+    timeout: 15000
+- takeScreenshot: docs/telas/17-ao-vivo-escuro
+- tapOn: 'Fechar'
+- tapOn: 'Voltar'
+
+# Volta para o tema do sistema.
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Sistema'
+- tapOn: 'Voltar'
+- tapOn: 'Início'

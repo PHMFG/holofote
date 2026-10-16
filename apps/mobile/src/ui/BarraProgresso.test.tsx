@@ -1,3 +1,4 @@
+import { montarTema } from '@holofote/tokens';
 import { screen } from '@testing-library/react-native';
 import { renderizar } from '../testes/renderizar';
 import { BarraPassos, BarraProgresso } from './BarraProgresso';
@@ -20,7 +21,9 @@ describe('BarraProgresso', () => {
 
   it('o preenchimento segue o destaque', async () => {
     await renderizar(<BarraProgresso valor={0.5} rotulo="Objetivo" />, { destaque: 'menta' });
-    expect(JSON.stringify(screen.toJSON())).toContain('#119278');
+    expect(JSON.stringify(screen.toJSON())).toContain(
+      montarTema('claro', 'menta').cores.destaqueGrafico,
+    );
   });
 
   it('passos dizem em qual passo o jogador está', async () => {

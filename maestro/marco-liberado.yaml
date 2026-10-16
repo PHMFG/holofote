@@ -1,0 +1,52 @@
+# Marco liberado (18): abre o marco pronto para resgatar, pela Jornada, e captura os dois temas
+# antes de resgatar. Para a captura, libere o marco 1 do mundo atual no banco de desenvolvimento:
+#   docker exec holofote-postgres-1 psql -U holofote -d holofote -c \
+#     "update marco set liberado_em = now() where ordem = 1 and mundo_id = \
+#      (select id from mundo where ativo order by criado_em desc limit 1)"
+appId: app.holofote
+name: Marco liberado
+---
+- runFlow: abrir-app.yaml
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - tapOn: 'Começar o dia'
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+- tapOn: 'Jornada'
+- extendedWaitUntil:
+    visible: 'Resgatar'
+    timeout: 15000
+- tapOn: 'Resgatar'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/18-marco-liberado-claro
+- tapOn: 'Fechar'
+
+# Escuro
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Escuro'
+- tapOn: 'Voltar'
+- tapOn: 'Jornada'
+- extendedWaitUntil:
+    visible: 'Resgatar'
+    timeout: 15000
+- tapOn: 'Resgatar'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/18-marco-liberado-escuro
+- tapOn: 'Fechar'
+
+# Volta para o tema do sistema.
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Sistema'
+- tapOn: 'Voltar'
+- tapOn: 'Início'

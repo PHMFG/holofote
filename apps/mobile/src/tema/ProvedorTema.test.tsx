@@ -1,9 +1,16 @@
+import { montarTema } from '@holofote/tokens';
 import { act, render, screen } from '@testing-library/react-native';
 import * as ReactNative from 'react-native';
 import { Appearance, Text } from 'react-native';
 import { useAparencia } from '../estado/aparencia';
 import { renderizar } from '../testes/renderizar';
 import { ProvedorTema, useTema } from './ProvedorTema';
+
+/** O que a Sonda escreve para um modo e destaque: vem do mesmo montarTema do provedor. */
+function esperado(modo: 'claro' | 'escuro', destaque: Parameters<typeof montarTema>[1]) {
+  const tema = montarTema(modo, destaque);
+  return `${modo} ${tema.cores.destaque} ${tema.sombras.botaoMetal[0]?.color}`;
+}
 
 function Sonda() {
   const tema = useTema();
@@ -13,14 +20,14 @@ function Sonda() {
 describe('ProvedorTema', () => {
   it('aplica o modo e o destaque escolhidos', async () => {
     await renderizar(<Sonda />, { modo: 'escuro', destaque: 'cobalto' });
-    expect(screen.getByText('escuro #2f5bff #2f5bff61')).toBeTruthy();
+    expect(screen.getByText(esperado('escuro', 'cobalto'))).toBeTruthy();
   });
 
   it('troca o destaque na hora, sem recarregar', async () => {
     await renderizar(<Sonda />);
-    expect(screen.getByText('claro #ff5a1f #ff5a1f61')).toBeTruthy();
+    expect(screen.getByText(esperado('claro', 'laranja'))).toBeTruthy();
     await act(async () => useAparencia.getState().definirDestaque('rosa'));
-    expect(screen.getByText('claro #ff4fa3 #ff4fa361')).toBeTruthy();
+    expect(screen.getByText(esperado('claro', 'rosa'))).toBeTruthy();
   });
 
   it.each([
@@ -47,7 +54,7 @@ describe('ProvedorTema', () => {
         <Sonda />
       </ProvedorTema>,
     );
-    expect(screen.getByText('escuro #ff5a1f #ff5a1f61')).toBeTruthy();
+    expect(screen.getByText(esperado('escuro', 'laranja'))).toBeTruthy();
     esquema.mockRestore();
   });
 

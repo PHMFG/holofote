@@ -1,0 +1,110 @@
+# Sub-fluxo: passa pelas telas a partir do feed e salva uma captura de cada uma.
+# Recebe TEMA (claro ou escuro) para o nome dos arquivos.
+appId: app.holofote
+---
+# 02 · Feed e 12 · Novo post
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+- takeScreenshot: docs/telas/02-feed-${TEMA}
+- tapOn: 'Novo post'
+- takeScreenshot: docs/telas/12-novo-post-${TEMA}
+- tapOn: 'Fechar'
+
+# 15 · História
+- runFlow:
+    when:
+      visible: 'História de .*'
+    commands:
+      - tapOn:
+          text: 'História de .*'
+          index: 0
+      - waitForAnimationToEnd
+      - takeScreenshot: docs/telas/15-historia-${TEMA}
+      - tapOn: 'Fechar'
+
+# 06 · Jornada, 16 · Evento, 20 · Resumo e 19 · Sem energia
+- tapOn: 'Jornada'
+- waitForAnimationToEnd
+# A aba guarda a rolagem da passada anterior: volta ao topo antes da captura.
+- scrollUntilVisible:
+    element: 'Objetivo principal.*'
+    direction: UP
+- takeScreenshot: docs/telas/06-jornada-${TEMA}
+- scrollUntilVisible:
+    element: '.*Dia [0-9]+, .*'
+    centerElement: true
+- tapOn: '.*Dia [0-9]+, .*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/16-evento-${TEMA}
+- tapOn: 'Voltar'
+- tapOn: 'Resumo do dia'
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - takeScreenshot: docs/telas/20-resumo-do-dia-${TEMA}
+      - tapOn: 'Começar o dia'
+- scrollUntilVisible:
+    element: 'Energia [0-9]+ de [0-9]+\..*'
+    centerElement: true
+- tapOn: 'Energia [0-9]+ de [0-9]+\..*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/19-energia-${TEMA}
+- tapOn: 'Agora não'
+
+# 14 · Mensagens e 04 · DM
+- tapOn: 'Mensagens.*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/14-mensagens-${TEMA}
+- runFlow:
+    when:
+      visible: '.*afinidade [0-9]+%.*'
+    commands:
+      - tapOn:
+          text: '.*afinidade [0-9]+%.*'
+          index: 0
+      - waitForAnimationToEnd
+      - takeScreenshot: docs/telas/04-dm-${TEMA}
+      - tapOn: 'Voltar'
+
+# 07 · Alertas
+- tapOn: 'Alertas.*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/07-alertas-${TEMA}
+
+# 05 · Perfil, 09 · Registro, 21 · Relações, 11 · Plus e 10 · Aparência
+- tapOn: 'Perfil'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/05-perfil-${TEMA}
+- tapOn: 'Registro de atividades'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/09-registro-${TEMA}
+- tapOn: 'Voltar'
+- tapOn: 'Ver mapa de relações'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/21-relacoes-${TEMA}
+# 08 · Perfil de personagem, pelo cartão de quem foi tocado no mapa
+- tapOn:
+    text: '.*, .*, [0-9]+%'
+    index: 0
+- takeScreenshot: docs/telas/21-relacoes-selecionado-${TEMA}
+- tapOn: 'Ver perfil de .*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/08-personagem-${TEMA}
+- tapOn: 'Voltar'
+- tapOn: 'Voltar'
+- scrollUntilVisible:
+    element: 'Holofote Plus.*'
+- tapOn: 'Holofote Plus.*'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/11-plus-${TEMA}
+- tapOn: 'Fechar'
+- scrollUntilVisible:
+    element: 'Aparência'
+    direction: UP
+- tapOn: 'Aparência'
+- waitForAnimationToEnd
+- takeScreenshot: docs/telas/10-aparencia-${TEMA}
+- tapOn: 'Voltar'
+- tapOn: 'Início'

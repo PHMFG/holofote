@@ -1,0 +1,51 @@
+# Energia até zero: posta até a API recusar por falta de energia, confere a folha Sem energia,
+# recarrega pelo botão de debug (pedido do dono para o MVP) e posta de novo.
+# Começa com um mundo pronto (rode antes criar-mundo-e-postar.yaml).
+appId: app.holofote
+name: Gastar a energia, recarregar no debug e voltar a postar
+---
+- runFlow: abrir-app.yaml
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - tapOn: 'Começar o dia'
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+
+# Cada post custa 1 de energia; a barra começa em 12.
+- repeat:
+    times: 14
+    commands:
+      - runFlow:
+          when:
+            notVisible: 'Sua energia acabou'
+          commands:
+            - tapOn: 'Novo post'
+            - tapOn:
+                id: 'campo-post'
+            - inputText: 'mais um ensaio aberto hoje, quem vem?'
+            - tapOn: 'Publicar.*'
+            - runFlow:
+                when:
+                  visible: 'Desfazer.*'
+                commands:
+                  - tapOn: 'Voltar'
+
+# 19 · Sem energia
+- extendedWaitUntil:
+    visible: 'Sua energia acabou'
+    timeout: 15000
+- takeScreenshot: docs/telas/19-sem-energia
+- tapOn: 'Recarregar \(debug\).*'
+- extendedWaitUntil:
+    notVisible: 'Sua energia acabou'
+    timeout: 15000
+
+# De volta ao novo post, publicar agora passa.
+- tapOn: 'Publicar.*'
+- extendedWaitUntil:
+    visible: 'Desfazer.*'
+    timeout: 30000
+- takeScreenshot: docs/telas/03-post-depois-da-recarga

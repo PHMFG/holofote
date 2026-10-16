@@ -1,0 +1,82 @@
+# Fluxo principal do MVP: criar mundo com a IA, postar, ver as reações chegando, responder e
+# mandar DM. Precisa da API, do worker e do Metro de pé (ver maestro/README.md).
+appId: app.holofote
+name: Criar mundo, postar, responder e mandar DM
+---
+- launchApp:
+    clearState: true
+- runFlow: abrir-app.yaml
+
+# 01 · Criar mundo
+- extendedWaitUntil:
+    visible: 'Antes de começar'
+    timeout: 60000
+- tapOn: 'Aceito o uso de IA de terceiros'
+- tapOn: 'Continuar'
+- tapOn:
+    id: 'campo-nome'
+- inputText: 'Rita Sal'
+- tapOn:
+    id: 'campo-arroba'
+- inputText: 'ritasal'
+# Com o teclado aberto, o botão do pé cobre o próximo campo: fecha tocando no título.
+- tapOn: 'Monte o seu mundo'
+- tapOn:
+    id: 'campo-quem'
+- inputText: 'confeiteira de bairro que entrou no reality para provar que doce simples vence'
+- tapOn: 'Monte o seu mundo'
+- scrollUntilVisible:
+    element: 'Reality show'
+- tapOn: 'Reality show'
+- tapOn: 'Criar mundo'
+- extendedWaitUntil:
+    visible: 'Seu mundo está pronto'
+    # A IA do Go costuma levar de 1 a 5 minutos para escrever o mundo.
+    timeout: 600000
+- takeScreenshot: docs/telas/01-mundo-pronto
+- tapOn: 'Entrar em cena'
+
+# 20 · Resumo do dia: abre sozinho na primeira visita do dia, quando o resumo já existe.
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - takeScreenshot: docs/telas/20-resumo-do-dia
+      - tapOn: 'Começar o dia'
+
+# 02 · Feed
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+- takeScreenshot: docs/telas/02-feed
+
+# 12 · Novo post e 03 · Post com consequências
+- tapOn: 'Novo post'
+- tapOn:
+    id: 'campo-post'
+- inputText: 'primeiro dia na cozinha e já queimei o caramelo. alguém aí tem coragem de provar?'
+- takeScreenshot: docs/telas/12-novo-post
+- tapOn: 'Publicar.*'
+- extendedWaitUntil:
+    visible: 'Desfazer.*'
+    timeout: 30000
+- takeScreenshot: docs/telas/03-post-consequencias
+# As reações da IA chegam pelo tempo real (a primeira em até 30 s). O link "Ver todas" já aparece
+# com zero respostas; espera a frase de lista vazia sumir para a captura 13 ter respostas.
+- extendedWaitUntil:
+    notVisible: 'Ainda sem respostas.*'
+    timeout: 180000
+- takeScreenshot: docs/telas/03-post-reacoes
+
+# 13 · Respostas (o link pode ficar sob o compositor até rolar)
+- scrollUntilVisible:
+    element: 'Ver todas.*'
+    visibilityPercentage: 90
+- waitForAnimationToEnd
+- tapOn: 'Ver todas.*'
+# A tela de respostas tem o seletor Relevantes, Recentes e Elenco; sem ele o toque não pegou.
+- extendedWaitUntil:
+    visible: 'Relevantes'
+    timeout: 10000
+- takeScreenshot: docs/telas/13-respostas
+- tapOn: 'Voltar'

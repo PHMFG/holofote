@@ -1,0 +1,51 @@
+# Passeio pelas telas em claro e em escuro, com captura de cada uma em docs/telas/.
+# Começa com um mundo pronto (rode antes criar-mundo-e-postar.yaml).
+appId: app.holofote
+name: Passeio pelas telas, claro e escuro
+---
+- runFlow: abrir-app.yaml
+- runFlow:
+    when:
+      visible: 'Começar o dia'
+    commands:
+      - tapOn: 'Começar o dia'
+
+# Claro
+- extendedWaitUntil:
+    visible: 'Novo post'
+    timeout: 30000
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Claro'
+- tapOn: 'Voltar'
+- tapOn: 'Início'
+- runFlow:
+    file: passeio.yaml
+    env:
+      TEMA: claro
+
+# Escuro
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Escuro'
+- tapOn: 'Voltar'
+- tapOn: 'Início'
+- runFlow:
+    file: passeio.yaml
+    env:
+      TEMA: escuro
+
+# Volta para o tema do sistema.
+- tapOn: 'Perfil'
+- extendedWaitUntil:
+    visible: 'Aparência'
+    timeout: 10000
+- tapOn: 'Aparência'
+- tapOn: 'Sistema'
+- tapOn: 'Voltar'

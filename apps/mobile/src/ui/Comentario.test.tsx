@@ -18,7 +18,7 @@ describe('Comentario', () => {
     expect(
       screen.getByLabelText('Duda Marques, verificado, FÃ, 8 min: o refrão é seu'),
     ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Responder' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Responder a Duda Marques' })).toBeTruthy();
   });
 
   it('o aninhado só tem curtir', async () => {
@@ -26,7 +26,7 @@ describe('Comentario', () => {
     await renderizar(
       <Comentario {...base} aninhado respostas={4} onResponder={() => {}} onCurtir={aoCurtir} />,
     );
-    expect(screen.queryByRole('button', { name: 'Responder' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Responder/ })).toBeNull();
     expect(screen.queryByText('4')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: '312 curtidas' }));
     expect(aoCurtir).toHaveBeenCalled();

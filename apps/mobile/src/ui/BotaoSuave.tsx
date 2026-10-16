@@ -18,6 +18,7 @@ export function BotaoSuave({
   rotulo,
   variante = 'suave',
   style,
+  disabled,
   ...props
 }: BotaoSuaveProps) {
   const { medidas } = useTema();
@@ -28,8 +29,11 @@ export function BotaoSuave({
       accessibilityLabel={rotulo}
       hitSlop={4}
       {...props}
+      disabled={disabled}
+      accessibilityState={{ disabled: !!disabled }}
       style={(estado) => [
-        { opacity: estado.pressed ? 0.7 : 1 },
+        // Desabilitado fica esmaecido: o toque não faz nada e o botão diz isso.
+        { opacity: disabled ? 0.4 : estado.pressed ? 0.7 : 1 },
         typeof style === 'function' ? style(estado) : style,
       ]}
     >

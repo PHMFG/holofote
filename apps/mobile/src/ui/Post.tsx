@@ -31,7 +31,10 @@ export interface PostProps {
   onSalvar?: () => void;
 }
 
-/** Post em cartão elevado (Figma 12:49). */
+/**
+ * Post em cartão elevado (Figma 12:49). Repostar e Salvar só aparecem com o handler: sem rota na
+ * API, ficam de fora em vez de virar controles que não fazem nada.
+ */
 export function Post(props: PostProps) {
   const { medidas } = useTema();
   const { nome, handle, tempo, texto, iniciais, tomAvatar = 'claro', verificado } = props;
@@ -66,12 +69,14 @@ export function Post(props: PostProps) {
               rotulo="respostas"
               onPress={props.onResponder}
             />
-            <Metrica
-              icone={Repeat}
-              valor={props.reposts}
-              rotulo="reposts"
-              onPress={props.onRepostar}
-            />
+            {props.onRepostar && (
+              <Metrica
+                icone={Repeat}
+                valor={props.reposts}
+                rotulo="reposts"
+                onPress={props.onRepostar}
+              />
+            )}
             <Metrica
               icone={Heart}
               valor={props.curtidas}
@@ -80,19 +85,21 @@ export function Post(props: PostProps) {
               onPress={props.onCurtir}
             />
           </View>
-          <Tocavel
-            onPress={props.onSalvar}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel={props.salvo ? 'Remover dos salvos' : 'Salvar'}
-            accessibilityState={{ selected: !!props.salvo }}
-          >
-            <Icone
-              icone={Bookmark}
-              tamanho={16}
-              cor={props.salvo ? 'destaqueTinta' : 'textoSuave'}
-            />
-          </Tocavel>
+          {props.onSalvar && (
+            <Tocavel
+              onPress={props.onSalvar}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={props.salvo ? 'Remover dos salvos' : 'Salvar'}
+              accessibilityState={{ selected: !!props.salvo }}
+            >
+              <Icone
+                icone={Bookmark}
+                tamanho={16}
+                cor={props.salvo ? 'destaqueTinta' : 'textoSuave'}
+              />
+            </Tocavel>
+          )}
         </View>
       </View>
     </Camada>

@@ -9,7 +9,7 @@ import { Tocavel } from './Tocavel';
 
 /**
  * Painel de baixo para cima (19 · Sem energia): cantos de cima com raio 32, alça e Elevação.
- * A apresentação (formSheet do Expo Router) e o escurecer atrás ficam com a tela que a usa.
+ * A apresentação (modal transparente do Expo Router) e o escurecer atrás ficam com a tela que a usa.
  */
 export function Folha({ children, style, ...props }: ViewProps) {
   const { cores } = useTema();

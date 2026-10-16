@@ -50,6 +50,8 @@ export interface ChipProps {
    * Quando definido, ignora `variante`.
    */
   selecionado?: boolean;
+  /** Rótulo lido pelo VoiceOver quando o texto visível não basta (ex.: "Ver" vira "Ver respostas"). */
+  rotuloAcessivel?: string;
   onPress?: () => void;
 }
 
@@ -61,6 +63,7 @@ export function Chip({
   iconeDepois,
   sobreFundo,
   selecionado,
+  rotuloAcessivel,
   onPress,
 }: ChipProps) {
   const { cores } = useTema();
@@ -102,7 +105,7 @@ export function Chip({
 
   if (!onPress)
     return (
-      <View accessible accessibilityLabel={rotulo}>
+      <View accessible accessibilityLabel={rotuloAcessivel ?? rotulo}>
         {conteudo}
       </View>
     );
@@ -110,7 +113,7 @@ export function Chip({
     <Pressable
       onPress={onPress}
       accessibilityRole={ehEscolha ? 'checkbox' : 'button'}
-      accessibilityLabel={rotulo}
+      accessibilityLabel={rotuloAcessivel ?? rotulo}
       accessibilityState={ehEscolha ? { checked: !!selecionado } : undefined}
       style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
     >

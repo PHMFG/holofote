@@ -199,6 +199,22 @@ describe('mundo', () => {
     expect(feed.itens.every((p: { respondeA: string | null }) => p.respondeA === null)).toBe(true);
     expect(feed.historias.length).toBeGreaterThan(0);
   });
+
+  it('feed com autor traz só os posts dele e nenhuma história', async () => {
+    const m = await mundoDeExemplo();
+    const r = await pedir(
+      m.token,
+      'GET',
+      `/v1/mundos/${m.mundoId}/feed?autor=${m.personagens.vic}`,
+    );
+    expect(r.statusCode).toBe(200);
+    const feed = r.json();
+    expect(feed.itens.length).toBeGreaterThan(0);
+    expect(
+      feed.itens.every((p: { autor: { id: string } }) => p.autor.id === m.personagens.vic),
+    ).toBe(true);
+    expect(feed.historias).toEqual([]);
+  });
 });
 
 describe('ações com energia', () => {

@@ -132,7 +132,8 @@ export function rotasMundos(app: AppZod, ctx: Contexto) {
     {
       schema: {
         params: z.object({ id: z.uuid() }),
-        querystring: z.object({ cursor: z.string().optional() }),
+        // `autor`: só os posts dessa pessoa (a seção "Seus posts" do perfil), sem histórias.
+        querystring: z.object({ cursor: z.string().optional(), autor: z.uuid().optional() }),
         response: { 200: RespostaFeed },
       },
     },
@@ -162,6 +163,7 @@ export function rotasMundos(app: AppZod, ctx: Contexto) {
             visiveis,
             eq(post.tipo, 'post'),
             isNull(post.respondeA),
+            req.query.autor ? eq(post.autorId, req.query.autor) : undefined,
             cursor
               ? or(
                   lt(post.entregarEm, cursor.data),
@@ -176,21 +178,22 @@ export function rotasMundos(app: AppZod, ctx: Contexto) {
       const ultimo = pagina.at(-1);
 
       // Histórias ativas: a mais recente de cada autor, marcando se o jogador já viu.
-      const historias = cursor
-        ? []
-        : await ctx.db
-            .select({ post, vista: historiaVista.postId, autor: personagem })
-            .from(post)
-            .innerJoin(personagem, eq(personagem.id, post.autorId))
-            .leftJoin(
-              historiaVista,
-              and(
-                eq(historiaVista.postId, post.id),
-                eq(historiaVista.personagemId, sessao.jogador.id),
-              ),
-            )
-            .where(and(visiveis, eq(post.tipo, 'historia'), gt(post.expiraEm, sessao.agora)))
-            .orderBy(desc(post.entregarEm));
+      const historias =
+        cursor || req.query.autor
+          ? []
+          : await ctx.db
+              .select({ post, vista: historiaVista.postId, autor: personagem })
+              .from(post)
+              .innerJoin(personagem, eq(personagem.id, post.autorId))
+              .leftJoin(
+                historiaVista,
+                and(
+                  eq(historiaVista.postId, post.id),
+                  eq(historiaVista.personagemId, sessao.jogador.id),
+                ),
+              )
+              .where(and(visiveis, eq(post.tipo, 'historia'), gt(post.expiraEm, sessao.agora)))
+              .orderBy(desc(post.entregarEm));
       const porAutor = new Map<string, (typeof historias)[number]>();
       for (const h of historias) if (!porAutor.has(h.autor.id)) porAutor.set(h.autor.id, h);
 

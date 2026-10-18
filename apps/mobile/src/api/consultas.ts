@@ -43,6 +43,8 @@ export const chaves = {
   conta: ['conta'] as const,
   mundo: ['mundo'] as const,
   feed: ['feed'] as const,
+  /** Posts de uma pessoa (seção "Seus posts"); fica sob ['feed'] para invalidar junto. */
+  feedDoAutor: (autorId: string) => ['feed', 'autor', autorId] as const,
   post: (id: string) => ['post', id] as const,
   thread: (id: string) => ['thread', id] as const,
   conversas: ['conversas'] as const,
@@ -86,6 +88,20 @@ export const useFeed = (mundoId: string | undefined) =>
         {
           schema: RespostaFeed,
         },
+      ),
+    getNextPageParam: (pagina) => pagina.proximoCursor,
+  });
+
+/** Posts de primeiro nível de uma pessoa, mais novos primeiro, paginados como o feed. */
+export const useFeedDoAutor = (mundoId: string | undefined, autorId: string | undefined) =>
+  useInfiniteQuery({
+    queryKey: chaves.feedDoAutor(autorId ?? ''),
+    enabled: !!mundoId && !!autorId,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      requisitar(
+        `/mundos/${mundoId}/feed?autor=${autorId}${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ''}`,
+        { schema: RespostaFeed },
       ),
     getNextPageParam: (pagina) => pagina.proximoCursor,
   });
@@ -293,11 +309,14 @@ export function useResponder(postId: string) {
 
 type PostDados = z.infer<typeof Post>;
 
-/** Aplica `f` ao post em todos os caches que o guardam: feed, threads e a chave do próprio post. */
+/**
+ * Aplica `f` ao post em todos os caches que o guardam: feed (e os posts de cada autor), threads
+ * e a chave do próprio post.
+ */
 function mapearPost(cliente: QueryClient, postId: string, f: (p: PostDados) => PostDados) {
   const trocar = (p: PostDados) => (p.id === postId ? f(p) : p);
-  cliente.setQueryData(
-    chaves.feed,
+  cliente.setQueriesData(
+    { queryKey: chaves.feed },
     (feed: InfiniteData<z.infer<typeof RespostaFeed>> | undefined) =>
       feed
         ? { ...feed, pages: feed.pages.map((pg) => ({ ...pg, itens: pg.itens.map(trocar) })) }
@@ -338,7 +357,7 @@ export function useCurtir() {
         cliente.cancelQueries({ queryKey: chaves.post(postId) }),
       ]);
       const anterior = {
-        feed: cliente.getQueryData(chaves.feed),
+        feeds: cliente.getQueriesData({ queryKey: chaves.feed }),
         threads: cliente.getQueriesData({ queryKey: ['thread'] }),
         post: cliente.getQueryData(chaves.post(postId)),
       };
@@ -348,7 +367,7 @@ export function useCurtir() {
     onError: (_erro, postId, anterior) => {
       // Com outra curtida em andamento, voltar ao retrato antigo desfaria a dela também: só relê.
       if (anterior && !outrasEmAndamento()) {
-        cliente.setQueryData(chaves.feed, anterior.feed);
+        for (const [chave, dados] of anterior.feeds) cliente.setQueryData(chave, dados);
         for (const [chave, dados] of anterior.threads) cliente.setQueryData(chave, dados);
         cliente.setQueryData(chaves.post(postId), anterior.post);
       }

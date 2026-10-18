@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { Alert, type AlertButton } from 'react-native';
 import { ErroDaApi } from '../../api/cliente';
 import { chamadas, simularApi } from '../../testes/api';
-import { conta, energia, jogador, mundo, personagem, uuid } from '../../testes/dados';
+import { conta, energia, jogador, mundo, personagem, post, uuid } from '../../testes/dados';
 import { renderizarTela } from '../../testes/renderizarTela';
 import { TelaPerfil } from './TelaPerfil';
 import { relacoesPrincipais, variacaoDeHoje } from './variacao';
@@ -75,6 +75,12 @@ const registro: ItemRegistro[] = [
   },
 ];
 
+const autorLua = personagem({ id: lua.id, nome: lua.nome, handle: lua.handle, papel: 'jogador' });
+const seusPosts = ['single novo sexta.', 'ensaio fechado hoje.', 'primeiro post do mundo.'].map(
+  (texto) => post({ autor: autorLua, texto }),
+);
+const feedDeLua = (itens = seusPosts) => ({ itens, proximoCursor: null, historias: [] });
+
 function simular(rotas: Record<string, unknown> = {}) {
   simularApi({
     'GET /mundos/atual': m,
@@ -82,6 +88,7 @@ function simular(rotas: Record<string, unknown> = {}) {
     'GET /conta': conta({ gemas: 40 }),
     'GET /energia': energia(8, 12),
     'GET /registro': registro,
+    [`GET /mundos/${m.id}/feed`]: feedDeLua(),
     'POST /energia/recarga': { energia: energia(12, 12), gemas: 40, anunciosRestantesHoje: 3 },
     'DELETE /mundos/atual': undefined,
     ...rotas,
@@ -99,7 +106,8 @@ describe('05 · Perfil do jogador', () => {
     expect(screen.getByText('@luaprado · Pop Brasil')).toBeTruthy();
     expect(screen.getByText(/^cantora em ascensão/)).toBeTruthy();
     expect(screen.getByText('7,1 mil')).toBeTruthy();
-    expect(screen.getByRole('image', { name: 'Lua Prado' })).toBeTruthy();
+    // O avatar da capa vem primeiro; os posts da seção "Seus posts" repetem o nome.
+    expect(screen.getAllByRole('image', { name: 'Lua Prado' })[0]).toBeTruthy();
 
     expect(await screen.findByLabelText('Fama 24%, subiu 2 hoje')).toBeTruthy();
     // O carisma de ontem não conta como variação de hoje.
@@ -208,6 +216,26 @@ describe('05 · Perfil do jogador', () => {
     await screen.findAllByRole('button', { name: /, afinidade \d+%/ });
   });
 
+  it('seus posts: os dois mais recentes e "Ver todos" abre a lista completa', async () => {
+    simular();
+    await renderizarTela(<TelaPerfil />);
+    expect(await screen.findByText('single novo sexta.')).toBeTruthy();
+    expect(screen.getByText('ensaio fechado hoje.')).toBeTruthy();
+    expect(screen.queryByText('primeiro post do mundo.')).toBeNull();
+    expect(chamadas.some((c) => c.rota === `/mundos/${m.id}/feed?autor=${lua.id}`)).toBe(true);
+    await fireEvent.press(screen.getByRole('link', { name: 'Ver todos os seus posts' }));
+    expect(router.push).toHaveBeenCalledWith('/seus-posts');
+  });
+
+  it('sem posts, convida a escrever o primeiro', async () => {
+    simular({ [`GET /mundos/${m.id}/feed`]: feedDeLua([]) });
+    await renderizarTela(<TelaPerfil />);
+    expect(await screen.findByText('Você ainda não postou nada.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Ver todos os seus posts' })).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Escrever um post' }));
+    expect(router.push).toHaveBeenCalledWith('/novo-post');
+  });
+
   it('cancelar a confirmação não apaga nada', async () => {
     const alerta = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     simular();
@@ -222,7 +250,7 @@ describe('05 · Perfil do jogador', () => {
   it('no tema escuro usa os tokens do escuro', async () => {
     simular();
     await renderizarTela(<TelaPerfil />, { modo: 'escuro' });
-    expect(await screen.findByText('Lua Prado')).toHaveStyle({
+    expect(await screen.findByRole('header', { name: 'Lua Prado' })).toHaveStyle({
       color: montarTema('escuro', 'laranja').cores.texto,
     });
     expect(screen.getByText('Ver mapa')).toHaveStyle({

@@ -1,4 +1,4 @@
-import type { Atributo } from '@holofote/shared';
+import type { Atributo, Post } from '@holofote/shared';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import {
@@ -16,7 +16,15 @@ import {
 } from 'lucide-react-native';
 import { Alert, StyleSheet, View } from 'react-native';
 import { tratarErroDeAcao } from '../../acoes/erros';
-import { useConta, useMundo, useRecarga, useRegistro, useRelacoes } from '../../api/consultas';
+import {
+  useConta,
+  useCurtir,
+  useFeedDoAutor,
+  useMundo,
+  useRecarga,
+  useRegistro,
+  useRelacoes,
+} from '../../api/consultas';
 import { formatarNumero } from '../../formatar';
 import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
@@ -31,6 +39,7 @@ import { atrasoDaCascata } from '../../ui/movimento';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
+import { PostDoFeed } from '../feed/PostDoFeed';
 import { comArroba } from '../registro/formatar';
 import { useAgora } from '../../tempo';
 import { Capa } from './Capa';
@@ -40,6 +49,9 @@ import { TelaComCapa } from './TelaComCapa';
 import { useRecomecarMundo } from './recomecar';
 import { SetaVariacao, rotuloVariacao } from './SetaVariacao';
 import { relacoesPrincipais, variacaoDeHoje } from './variacao';
+
+/** Quantos posts recentes a seção "Seus posts" mostra; o resto fica em "Ver todos". */
+const POSTS_NO_PERFIL = 2;
 
 // icon/estrela do Figma (19:278) é desenho próprio, uma estrela de 4 pontas preenchida;
 // Sparkles do lucide é o mais próximo.
@@ -57,6 +69,8 @@ export function TelaPerfil() {
   const registro = useRegistro();
   const recarga = useRecarga();
   const recomecar = useRecomecarMundo();
+  const seusPosts = useFeedDoAutor(mundo.data?.id, mundo.data?.jogador.id);
+  const { mutate: curtir } = useCurtir();
   const agora = useAgora(60_000);
   const variacao = variacaoDeHoje(registro.data, agora);
 
@@ -78,6 +92,11 @@ export function TelaPerfil() {
 
   const { jogador } = mundo.data;
   const principais = relacoesPrincipais(relacoes.data?.nos ?? []);
+  const recentes = seusPosts.data?.pages[0]?.itens.slice(0, POSTS_NO_PERFIL) ?? [];
+  const aoCurtir = (post: Post) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    curtir(post.id, { onError: tratarErroDeAcao });
+  };
 
   const recarregarDebug = () => {
     if (recarga.isPending) return;
@@ -278,12 +297,62 @@ export function TelaPerfil() {
         </Aparecer>
       )}
 
-      <Aparecer indice={7} style={estilos.tituloSecao}>
+      <Aparecer indice={6} style={[estilos.linhaEntre, estilos.tituloSecao]}>
+        <Texto estilo="secao" accessibilityRole="header">
+          Seus posts
+        </Texto>
+        {recentes.length > 0 && (
+          <Tocavel
+            onPress={() => router.push('/seus-posts')}
+            accessibilityRole="link"
+            accessibilityLabel="Ver todos os seus posts"
+            hitSlop={8}
+            style={estilos.verMapa}
+          >
+            <Texto estilo="legenda" cor="destaqueTinta">
+              Ver todos
+            </Texto>
+          </Tocavel>
+        )}
+      </Aparecer>
+      <Aparecer indice={7} style={estilos.posts}>
+        {seusPosts.isError && !seusPosts.data ? (
+          <EstadoTela
+            tipo="erro"
+            frase="Não deu para carregar seus posts."
+            acao={{ rotulo: 'Tentar de novo', onPress: () => void seusPosts.refetch() }}
+          />
+        ) : recentes.length === 0 ? (
+          <Cartao>
+            <Texto cor="textoSuave" style={estilos.semPosts}>
+              {seusPosts.isPending ? 'Carregando seus posts…' : 'Você ainda não postou nada.'}
+            </Texto>
+            {!seusPosts.isPending && (
+              <Tocavel
+                onPress={() => router.push('/novo-post')}
+                accessibilityRole="button"
+                hitSlop={8}
+                style={estilos.escrever}
+              >
+                <Texto estilo="legenda" cor="destaqueTinta">
+                  Escrever um post
+                </Texto>
+              </Tocavel>
+            )}
+          </Cartao>
+        ) : (
+          recentes.map((post) => (
+            <PostDoFeed key={post.id} post={post} agora={agora} onCurtir={aoCurtir} />
+          ))
+        )}
+      </Aparecer>
+
+      <Aparecer indice={8} style={estilos.tituloSecao}>
         <Texto estilo="secao" accessibilityRole="header">
           Conta
         </Texto>
       </Aparecer>
-      <Aparecer indice={8}>
+      <Aparecer indice={9}>
         <Cartao lista>
           <LinhaConta
             icone={Crown}
@@ -370,6 +439,9 @@ const estilos = StyleSheet.create({
   tituloSecao: { paddingTop: 4, paddingHorizontal: 4 },
   fimRelacao: { alignItems: 'flex-end', gap: 2 },
   semRelacoes: { paddingVertical: 12 },
+  posts: { gap: 10 },
+  semPosts: { textAlign: 'center' },
+  escrever: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginBottom: -12 },
   // Área de toque de 44 pt (o texto sozinho tem uns 16).
   verMapa: { minHeight: 44, justifyContent: 'center', marginVertical: -14 },
 });

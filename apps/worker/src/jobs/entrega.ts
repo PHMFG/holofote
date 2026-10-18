@@ -10,6 +10,7 @@ import {
   mensagemDto,
   mundo,
   personagem,
+  personagemResumoDto,
   post,
   postDto,
   sql,
@@ -36,6 +37,11 @@ export async function processarEntrega(db: Db, redis: Redis, pedido: PedidoEntre
   const [m] = await db.select({ id: mundo.id }).from(mundo).where(eq(mundo.id, pedido.mundoId));
   const jogador = m ? await jogadorDoMundo(db, pedido.mundoId) : null;
   if (!jogador) return;
+
+  if (pedido.tipo === 'digitando') {
+    await publicarDigitando(db, redis, pedido, jogador.id);
+    return;
+  }
 
   if (pedido.tipo === 'post') {
     const p = await db.transaction(async (tx) => {
@@ -97,4 +103,34 @@ export async function processarEntrega(db: Db, redis: Redis, pedido: PedidoEntre
     ? await db.select().from(personagem).where(eq(personagem.id, a.personagemId))
     : [];
   await publicar(redis, pedido.mundoId, { tipo: 'alerta', alerta: alertaDto(a, autor ?? null) });
+}
+
+/**
+ * "Digitando" pouco antes de uma mensagem ou resposta de personagem: só se o item ainda não
+ * chegou, não foi desfeito e é de um personagem (no post, só respostas, que aparecem na conversa).
+ */
+async function publicarDigitando(db: Db, redis: Redis, pedido: PedidoEntrega, jogadorId: string) {
+  if (pedido.de === 'mensagem') {
+    const [msg] = await db.select().from(mensagem).where(eq(mensagem.id, pedido.id));
+    if (!msg || msg.oculto || msg.entregueEm || msg.autorId === jogadorId) return;
+    const [autor] = await db.select().from(personagem).where(eq(personagem.id, msg.autorId));
+    if (!autor) return;
+    await publicar(redis, pedido.mundoId, {
+      tipo: 'digitando',
+      personagem: personagemResumoDto(autor),
+      conversaId: msg.conversaId,
+      postId: null,
+    });
+    return;
+  }
+  const [p] = await db.select().from(post).where(eq(post.id, pedido.id));
+  if (!p || p.oculto || p.entregueEm || !p.respondeA || p.autorId === jogadorId) return;
+  const [autor] = await db.select().from(personagem).where(eq(personagem.id, p.autorId));
+  if (!autor) return;
+  await publicar(redis, pedido.mundoId, {
+    tipo: 'digitando',
+    personagem: personagemResumoDto(autor),
+    conversaId: null,
+    postId: p.respondeA,
+  });
 }

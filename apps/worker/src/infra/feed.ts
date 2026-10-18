@@ -16,7 +16,7 @@ import { engajamentoDePersonagem, type Rng } from '@holofote/engine';
 import type { SaidaFeed } from '@holofote/llm';
 import type { ContextoWorker } from '../contexto';
 import type { Cena } from './cena';
-import { agendarEntrega, type PedidoEntrega } from './entrega';
+import { agendarEntregaComDigitando, type PedidoEntrega } from './entrega';
 import type { Executor } from './relacoes';
 
 const HORA = 3600_000;
@@ -172,7 +172,7 @@ export async function agendarEntregas(
   entregas: readonly Entrega[],
 ): Promise<void> {
   for (const e of entregas)
-    await agendarEntrega(ctx.filas.entrega, e.pedido, e.entregarEm, cena.agora);
+    await agendarEntregaComDigitando(ctx.filas.entrega, e.pedido, e.entregarEm, cena.agora);
 }
 
 export interface NumeroResumo {

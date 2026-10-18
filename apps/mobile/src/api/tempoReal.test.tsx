@@ -194,7 +194,7 @@ describe('"digitando"', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
-  it('um aviso novo do mesmo personagem renova a contagem de 8 s', () => {
+  it('um aviso novo do mesmo personagem renova a contagem de 12 s', () => {
     const vic = personagem();
     const alvo = uuid();
     const aviso: EventoTempoReal = {
@@ -204,12 +204,12 @@ describe('"digitando"', () => {
       postId: null,
     };
     aplicarNoCache(cliente, aviso);
-    jest.advanceTimersByTime(5000);
+    jest.advanceTimersByTime(8000);
     aplicarNoCache(cliente, aviso);
-    // 8 s depois do primeiro aviso o primeiro timer já teria apagado; o renovado ainda vale.
-    jest.advanceTimersByTime(5000);
+    // 12 s depois do primeiro aviso o primeiro timer já teria apagado; o renovado ainda vale.
+    jest.advanceTimersByTime(8000);
     expect(useDigitando.getState().porAlvo[alvo]).toEqual([vic]);
-    jest.advanceTimersByTime(3100);
+    jest.advanceTimersByTime(4100);
     expect(useDigitando.getState().porAlvo[alvo]).toEqual([]);
   });
 

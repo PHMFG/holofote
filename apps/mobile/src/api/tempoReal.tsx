@@ -17,7 +17,9 @@ interface EstadoDigitando {
   limpar: (alvo: string, personagemId: string) => void;
 }
 
-const DURACAO_DIGITANDO_MS = 8000;
+// O worker manda "digitando" ao começar a escrever e de novo pouco antes de cada mensagem ou
+// resposta; o aviso some quando ela chega ou, se nada chegar, depois deste tempo.
+const DURACAO_DIGITANDO_MS = 12000;
 
 export const useDigitando = create<EstadoDigitando>((set) => ({
   porAlvo: {},

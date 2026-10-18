@@ -24,7 +24,7 @@ import {
   escolherReatores,
   idDoAlvoRelacao,
 } from '@holofote/engine';
-import type { AcaoDiretor } from '@holofote/llm';
+import type { AcaoDiretor, SaidaDiretor } from '@holofote/llm';
 import type { ContextoWorker } from '../contexto';
 import { acaoViva, retomarEntregas, travarAcaoPendente } from '../infra/acao';
 import {
@@ -238,7 +238,8 @@ export async function diretor(ctx: ContextoWorker, pedido: PedidoDiretor): Promi
       futuras.push({ pedido: { tipo, id, mundoId: cena.mundo.id }, entregarEm });
 
     const primeira = Math.min(...dados.reacoes.map((r) => r.atrasoSeg));
-    for (const r of dados.reacoes) {
+    const reacoes = ajustarCanais(dados.reacoes, alvo.acao.tipo, !!alvo.postDoJogador);
+    for (const r of reacoes) {
       const autor = porId.get(r.personagemId);
       if (!autor) continue;
       const entregarEm = new Date(depois.agora.getTime() + atrasoDaReacao(r.atrasoSeg, primeira));
@@ -321,6 +322,30 @@ export async function diretor(ctx: ContextoWorker, pedido: PedidoDiretor): Promi
     tipo: 'cartao',
     eventoId: a.id,
     cartao: dados.cartao,
+  });
+}
+
+type Reacao = SaidaDiretor['reacoes'][number];
+
+/**
+ * Onde cada reação aparece. Uma resposta a um comentário fica sempre na conversa do post (quem
+ * comentou espera a resposta ali, não na DM). Num post, no máximo uma reação vira mensagem
+ * direta; as outras ficam como resposta ao post.
+ */
+export function ajustarCanais(
+  reacoes: readonly Reacao[],
+  tipoDaAcao: AcaoDiretor['tipo'],
+  temPostDoJogador: boolean,
+): Reacao[] {
+  let dms = 0;
+  return reacoes.map((r) => {
+    if (r.tipo !== 'dm') return r;
+    const podeDm = tipoDaAcao === 'post' && dms === 0;
+    if (podeDm) {
+      dms++;
+      return r;
+    }
+    return { ...r, tipo: temPostDoJogador ? 'resposta' : 'citacao' };
   });
 }
 

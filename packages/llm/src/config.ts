@@ -49,7 +49,7 @@ const esquema = z
     LLM_USER_AGENT: z.string().trim().min(1).default('holofote-server/0.1'),
     LLM_MODEL_DIRETOR: idModelo.default('deepseek-v4.1-flash'),
     LLM_MODEL_PRINCIPAL: idModelo.default('deepseek-v4.1-flash'),
-    LLM_MODEL_LOTE: idModelo.default('mimo-v2.6-flash'),
+    LLM_MODEL_LOTE: idModelo.default('deepseek-v4.1-flash'),
     LLM_MODEL_RESERVA: idModelo.default('glm-5.3-flash'),
     LLM_DAILY_BUDGET_USD: z.coerce.number().positive().default(2),
   })

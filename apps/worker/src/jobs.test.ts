@@ -398,7 +398,14 @@ describe('dm, discurso, lote diário e ficha', () => {
     const [c] = await conexao.db.select().from(conversa).where(eq(conversa.id, f.conversas.vic));
     expect(c!.resumo).toBeTruthy();
     expect(eventos[0]).toMatchObject({ tipo: 'digitando', conversaId: f.conversas.vic });
-    expect(adicionados.filter((x) => x.fila === FILAS.entrega)).toHaveLength(respostas.length);
+    const entregas = adicionados.filter((x) => x.fila === FILAS.entrega);
+    // Cada mensagem tem a entrega e, pouco antes, o "digitando" do personagem.
+    expect(entregas.filter((x) => (x.dados as { tipo: string }).tipo === 'mensagem')).toHaveLength(
+      respostas.length,
+    );
+    const digitando = entregas.filter((x) => (x.dados as { tipo: string }).tipo === 'digitando');
+    expect(digitando).toHaveLength(respostas.length);
+    expect(digitando.every((x) => (x.dados as { de: string }).de === 'mensagem')).toBe(true);
   });
 
   it('discurso: manchete vira o cartão e as reações entram no feed', async () => {
@@ -511,6 +518,40 @@ describe('entrega', () => {
     await conexao.db.update(post).set({ oculto: true }).where(eq(post.id, resposta!.id));
     await processarEntrega(ctx.db, ctx.redis, pedido);
     expect(eventos).toHaveLength(1);
+  });
+
+  it('digitando sai antes da mensagem do personagem e não sai depois que ela chegou', async () => {
+    const f = await criarFixturePopBrasil(conexao.db, { agora: AGORA });
+    const { ctx, eventos } = montarCtx();
+    const [msg] = await conexao.db
+      .insert(mensagem)
+      .values({
+        conversaId: f.conversas.duda,
+        autorId: f.personagens.duda,
+        texto: 'já te respondo',
+        entregarEm: new Date(AGORA.getTime() + 10_000),
+      })
+      .returning();
+    const pedido = {
+      tipo: 'digitando' as const,
+      de: 'mensagem' as const,
+      id: msg!.id,
+      mundoId: f.mundoId,
+    };
+    await processarEntrega(ctx.db, ctx.redis, pedido);
+    expect(eventos[0]).toMatchObject({
+      tipo: 'digitando',
+      conversaId: f.conversas.duda,
+      postId: null,
+    });
+
+    await processarEntrega(ctx.db, ctx.redis, {
+      tipo: 'mensagem',
+      id: msg!.id,
+      mundoId: f.mundoId,
+    });
+    await processarEntrega(ctx.db, ctx.redis, pedido);
+    expect(eventos.filter((e) => e.tipo === 'digitando')).toHaveLength(1);
   });
 
   it('mensagem de personagem conta como não lida', async () => {

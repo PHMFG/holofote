@@ -333,7 +333,7 @@ describe('verificarModelos', () => {
     const { fetch } = fetchFalso(lista(['deepseek-v4.1-flash', 'deepseek-v4-pro']));
     const erro = await verificarModelos(config, { fetch }).catch((e: unknown) => e);
     expect(erro).toBeInstanceOf(ErroModelosAusentes);
-    expect((erro as ErroModelosAusentes).ausentes).toEqual(['mimo-v2.6-flash', 'glm-5.3-flash']);
+    expect((erro as ErroModelosAusentes).ausentes).toEqual(['glm-5.3-flash']);
   });
 
   it('erro HTTP vira ErroProvedor sem a chave', async () => {

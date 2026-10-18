@@ -125,7 +125,7 @@ export function Compositor({
             { color: cores.texto, lineHeight: undefined },
           ]}
         />
-        <Custo energia={custo} />
+        <Custo energia={custo} style={estilos.custo} />
         <Animated.View style={botao}>
           <Esfera
             tom="escuro"
@@ -147,5 +147,6 @@ const estilos = StyleSheet.create({
   contexto: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
   pilula: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 6, paddingLeft: 8 },
   flex: { flex: 1 },
+  custo: { alignSelf: 'center' },
   campo: { paddingTop: 0, paddingBottom: 0, maxHeight: 120, textAlignVertical: 'center' },
 });

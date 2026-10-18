@@ -26,6 +26,7 @@ import {
   type PedidoPost,
 } from '@holofote/shared';
 import { useCallback } from 'react';
+import { acertarRelogioDoMundo } from '../curtidas';
 import {
   useInfiniteQuery,
   useMutation,
@@ -66,7 +67,11 @@ export const useConta = () =>
 export const useMundo = () =>
   useQuery({
     queryKey: chaves.mundo,
-    queryFn: () => requisitar('/mundos/atual', { schema: Mundo }),
+    queryFn: () =>
+      requisitar('/mundos/atual', { schema: Mundo }).then((m) => {
+        acertarRelogioDoMundo(m.agora);
+        return m;
+      }),
     retry: false,
   });
 
@@ -238,6 +243,7 @@ export function useCriarMundo() {
     mutationFn: (pedido: PedidoCriarMundo) =>
       requisitar('/mundos', { metodo: 'POST', corpo: pedido, schema: Mundo }),
     onSuccess: (mundo) => {
+      acertarRelogioDoMundo(mundo.agora);
       cliente.setQueryData(chaves.mundo, mundo);
       void cliente.invalidateQueries({ queryKey: chaves.conta });
     },

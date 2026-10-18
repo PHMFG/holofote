@@ -2,10 +2,11 @@ import type { PersonagemResumo, Post } from '@holofote/shared';
 import { router } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { useCurtidas } from '../../curtidas';
 import { primeiroNome } from '../../formatar';
 import { tempoRelativo } from '../../tempo';
 import { useTema } from '../../tema/ProvedorTema';
-import { Comentario, SeparadorComentario } from '../../ui/Comentario';
+import { Comentario, SeparadorComentario, type ComentarioProps } from '../../ui/Comentario';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
 import { useAnimacoes } from '../animacao/animacoes';
@@ -82,14 +83,14 @@ export function PreviaRespostas({
         {primeiras.map((r, i) => (
           <ItemAnimado key={r.id} registro={entradas} id={r.id} style={estilos.item} fadePadrao>
             {i > 0 && <SeparadorComentario />}
-            <Comentario
+            <ComentarioDaPrevia
+              post={r}
               nome={r.autor.nome}
               iniciais={r.autor.iniciais}
               tomAvatar={r.autor.tomAvatar}
               verificado={r.autor.verificado}
               tempo={tempoRelativo(r.criadoEm, agora, diaAtual)}
               texto={r.texto}
-              curtidas={r.curtidas}
               respostas={r.respostas}
               reposts={r.reposts}
               curtido={r.curtidoPorMim}
@@ -137,3 +138,8 @@ const estilos = StyleSheet.create({
   centro: { textAlign: 'center' },
   item: { gap: 12 },
 });
+
+/** Comentário da prévia com as curtidas subindo junto com a idade da resposta. */
+function ComentarioDaPrevia({ post, ...props }: Omit<ComentarioProps, 'curtidas'> & { post: Post }) {
+  return <Comentario {...props} curtidas={useCurtidas(post)} />;
+}

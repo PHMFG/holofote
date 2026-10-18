@@ -2,6 +2,7 @@ import type { Post } from '@holofote/shared';
 import { router } from 'expo-router';
 import { Clock, Heart, MessageCircle, Repeat } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
+import { useCurtidas } from '../../curtidas';
 import { useTema } from '../../tema/ProvedorTema';
 import { Avatar } from '../../ui/Avatar';
 import { Cartao } from '../../ui/Cartao';
@@ -21,6 +22,7 @@ export interface PostPrincipalProps {
 
 /** Post aberto no topo da tela 03 (Figma 17:175): avatar 48, texto grande, meta e contadores. */
 export function PostPrincipal({ post, agora, onCurtir }: PostPrincipalProps) {
+  const curtidas = useCurtidas(post);
   const { tipografia } = useTema();
   const { autor } = post;
   const doJogador = autor.papel === 'jogador';
@@ -88,7 +90,7 @@ export function PostPrincipal({ post, agora, onCurtir }: PostPrincipalProps) {
         <ContadorAcao icone={Repeat} valor={post.reposts} rotulo="reposts" />
         <ContadorAcao
           icone={Heart}
-          valor={post.curtidas}
+          valor={curtidas}
           rotulo="curtidas"
           ativo={post.curtidoPorMim}
           onPress={onCurtir}

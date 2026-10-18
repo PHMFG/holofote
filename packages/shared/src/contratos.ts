@@ -177,6 +177,11 @@ export const Mundo = z.object({
   objetivoAto: z.string().nullable(),
   estado: EstadoMundo,
   jogador: Personagem,
+  /**
+   * Hora do mundo quando a resposta saiu. Igual à real em produção; adiantada pelo relógio de
+   * desenvolvimento (POST /v1/dev/relogio). O app conta idades (curtidas que sobem) por ela.
+   */
+  agora: instante,
 });
 
 // ---------- Mensagens e alertas ----------

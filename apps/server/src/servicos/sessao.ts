@@ -66,5 +66,6 @@ export function diaEPeriodo(sessao: SessaoComMundo) {
   return {
     dia: diaDoMundo(sessao.mundo.criadoEm, sessao.agora, sessao.usuario.fuso),
     periodo: periodoDe(sessao.agora, sessao.usuario.fuso),
+    agora: sessao.agora,
   };
 }

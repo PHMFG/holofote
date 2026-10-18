@@ -2,6 +2,7 @@ import type { Post as PostDados } from '@holofote/shared';
 import { router } from 'expo-router';
 import { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useCurtidas } from '../../curtidas';
 import { Post } from '../../ui/Post';
 import { Tocavel } from '../../ui/Tocavel';
 import { tempoRelativo } from '../../tempo';
@@ -26,6 +27,7 @@ export function rotaDoAutor(autor: PostDados['autor']): string {
 export const PostDoFeed = memo(function PostDoFeed({ post, agora, onCurtir }: PostDoFeedProps) {
   const { autor } = post;
   const [brilho, setBrilho] = useState(0);
+  const curtidas = useCurtidas(post);
   const aoCurtir = () => {
     // O brilho é só da curtida; descurtir não comemora.
     if (!post.curtidoPorMim) setBrilho((n) => n + 1);
@@ -43,7 +45,7 @@ export const PostDoFeed = memo(function PostDoFeed({ post, agora, onCurtir }: Po
         verificado={autor.verificado}
         respostas={post.respostas}
         reposts={post.reposts}
-        curtidas={post.curtidas}
+        curtidas={curtidas}
         curtido={post.curtidoPorMim}
         onAbrir={() => router.push(`/post/${post.id}`)}
         onResponder={() => router.push(`/post/${post.id}/respostas`)}

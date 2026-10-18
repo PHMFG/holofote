@@ -7,6 +7,7 @@ import Animated from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useCurtir, useMundo, useResponder, useThread } from '../../api/consultas';
 import { useDigitando } from '../../api/tempoReal';
+import { useCurtidas } from '../../curtidas';
 import { primeiroNome } from '../../formatar';
 import { horaCurta, tempoRelativo, useAgora } from '../../tempo';
 import { Aparecer } from '../../ui/Aparecer';
@@ -43,12 +44,28 @@ interface Alvo {
   handle: string;
 }
 
+/**
+ * Quantas respostas a um comentário aparecem com ele recolhido: as mais novas, que é onde está a
+ * resposta do elenco ao jogador. As anteriores ficam atrás de "Ver N respostas anteriores".
+ */
+const FILHAS_RECOLHIDO = 2;
+
+const filhasExibidas = (no: NoThread, aberto: boolean) =>
+  aberto ? no.filhas : no.filhas.slice(-FILHAS_RECOLHIDO);
+
 /** Ids na ordem em que a conversa os mostra (as respostas recolhidas não contam). */
 function idsExibidos(nos: readonly NoThread[], abertos: ReadonlySet<string>): string[] {
   return nos.flatMap((no) => {
-    const filhas = abertos.has(no.resposta.id) ? no.filhas : no.filhas.slice(0, 1);
+    const filhas = filhasExibidas(no, abertos.has(no.resposta.id));
     return [no.resposta.id, ...filhas.map((f) => f.id)];
   });
+}
+
+/** Arroba de quem a resposta responde, quando é outra resposta e não o comentário de cima. */
+function destinoDa(filha: Post, no: NoThread): string | undefined {
+  if (filha.respondeA === no.resposta.id) return undefined;
+  const pai = no.filhas.find((f) => f.id === filha.respondeA);
+  return pai && pai.autor.id !== filha.autor.id ? pai.autor.handle : undefined;
 }
 
 /**
@@ -260,7 +277,7 @@ interface BlocoProps {
   onResponder: (resposta: Post) => void;
 }
 
-/** Comentário de primeiro nível, a primeira resposta a ele e "Ver mais N respostas". */
+/** Comentário de primeiro nível, as últimas respostas a ele e "Ver N respostas anteriores". */
 function BlocoDeResposta({
   no,
   aberto,
@@ -272,7 +289,7 @@ function BlocoDeResposta({
   onResponder,
 }: BlocoProps) {
   const animacoes = useAnimacoes();
-  const filhas = aberto ? no.filhas : no.filhas.slice(0, 1);
+  const filhas = filhasExibidas(no, aberto);
   const escondidas = no.filhas.length - filhas.length;
   return (
     <>
@@ -285,22 +302,24 @@ function BlocoDeResposta({
       />
       {filhas.length > 0 && (
         <Animated.View layout={animacoes.layout} style={estilos.aninhados}>
+          {escondidas > 0 && (
+            <Animated.View exiting={animacoes.saida} layout={animacoes.layout}>
+              <VerMaisRespostas quantidade={escondidas} anteriores onPress={onAbrir} />
+            </Animated.View>
+          )}
           {filhas.map((filha) => (
             <ItemAnimado key={filha.id} registro={entradas} id={filha.id} fadePadrao>
               <ComentarioDaThread
                 post={filha}
                 aninhado
+                para={destinoDa(filha, no)}
                 diaAtual={diaAtual}
                 agora={agora}
                 onCurtir={onCurtir}
+                onResponder={() => onResponder(filha)}
               />
             </ItemAnimado>
           ))}
-          {escondidas > 0 && (
-            <Animated.View exiting={animacoes.saida} layout={animacoes.layout}>
-              <VerMaisRespostas quantidade={escondidas} onPress={onAbrir} />
-            </Animated.View>
-          )}
         </Animated.View>
       )}
     </>
@@ -310,6 +329,7 @@ function BlocoDeResposta({
 interface ComentarioDaThreadProps {
   post: Post;
   aninhado?: boolean;
+  para?: string;
   diaAtual: number | undefined;
   agora: number;
   onCurtir: (id: string) => void;
@@ -324,6 +344,7 @@ interface ComentarioDaThreadProps {
 function ComentarioDaThread({
   post,
   aninhado,
+  para,
   diaAtual,
   agora,
   onCurtir,
@@ -332,6 +353,7 @@ function ComentarioDaThread({
   const { autor } = post;
   const tamanho = aninhado ? 28 : 36;
   const [brilho, setBrilho] = useState(0);
+  const curtidas = useCurtidas(post);
   const aoCurtir = () => {
     if (!post.curtidoPorMim) setBrilho((n) => n + 1);
     onCurtir(post.id);
@@ -345,11 +367,12 @@ function ComentarioDaThread({
         verificado={autor.verificado}
         tempo={tempoRelativo(post.criadoEm, agora, diaAtual)}
         texto={post.texto}
-        curtidas={post.curtidas}
+        curtidas={curtidas}
         respostas={post.respostas > 0 ? post.respostas : undefined}
         reposts={post.reposts > 0 ? post.reposts : undefined}
         curtido={post.curtidoPorMim}
         aninhado={aninhado}
+        para={para}
         onCurtir={aoCurtir}
         onResponder={onResponder}
       />

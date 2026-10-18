@@ -3,6 +3,7 @@
 export * from './acoes';
 export * from './atributos';
 export * from './constantes';
+export * from './curtidas';
 export * from './desfazer';
 export * from './elenco';
 export * from './energia';

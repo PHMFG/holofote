@@ -20,7 +20,9 @@ jest.mock('expo-haptics', () => ({
   notificationAsync: jest.fn(async () => {}),
   NotificationFeedbackType: { Success: 'success' },
 }));
-const antes = (minutos: number) => new Date(Date.now() - minutos * 60_000).toISOString();
+// Duas horas antes de tudo: as curtidas já terminaram de subir (packages/engine, curtidas.ts).
+const antes = (minutos: number) =>
+  new Date(Date.now() - (120 + minutos) * 60_000).toISOString();
 
 const lua = personagem({
   nome: 'Lua Prado',
@@ -138,16 +140,18 @@ describe('13 · Respostas', () => {
     expect(screen.getByPlaceholderText('Responder como Lua…')).toBeTruthy();
   });
 
-  it('aninha a primeira resposta e esconde o resto em "Ver mais"', async () => {
+  it('mostra as últimas respostas de cada comentário e as anteriores em "Ver"', async () => {
     simular();
     await renderizarTela(<TelaRespostas postId={original.id} />);
 
-    expect(await screen.findByText('ninguém topou porque ela não precisou.')).toBeTruthy();
-    expect(screen.queryByText('a setlist já está pronta.')).toBeNull();
-    await fireEvent.press(screen.getByRole('button', { name: 'Ver mais 2 respostas' }));
-    expect(screen.getByText('a setlist já está pronta.')).toBeTruthy();
+    expect(await screen.findByText('a setlist já está pronta.')).toBeTruthy();
     expect(screen.getByText('precisou sim.')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Ver mais/ })).toBeNull();
+    // Vic responde a Duda, não ao comentário de cima: a marca diz para quem é.
+    expect(screen.getByText('para @dudamarques')).toBeTruthy();
+    expect(screen.queryByText('ninguém topou porque ela não precisou.')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Ver 1 resposta anterior' }));
+    expect(screen.getByText('ninguém topou porque ela não precisou.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /anterior/ })).toBeNull();
   });
 
   it('filtra por recentes e pelo elenco', async () => {

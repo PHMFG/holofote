@@ -70,6 +70,7 @@ export const mundo = (p: Partial<Mundo> = {}): Mundo => ({
   objetivoAto: 'Dominar o pop nacional',
   estado: 'pronto',
   jogador: jogador(),
+  agora: new Date().toISOString(),
   ...p,
 });
 

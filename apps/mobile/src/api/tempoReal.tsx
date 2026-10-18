@@ -3,6 +3,7 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { create } from 'zustand';
+import { acertarRelogioDoMundo } from '../curtidas';
 import { useCartoes } from './cartoes';
 import { garantirToken } from './cliente';
 import { WS_URL } from './config';
@@ -115,6 +116,7 @@ export function aplicarNoCache(cliente: QueryClient, evento: EventoTempoReal) {
       invalidar(chaves.registro, chaves.relacoes, ['personagem']);
       break;
     case 'mundo':
+      acertarRelogioDoMundo(evento.mundo.agora);
       cliente.setQueryData(chaves.mundo, evento.mundo);
       // Pronto: o feed inicial chegou. Também é o aviso de ato novo: a jornada passa a ser a nova.
       if (evento.mundo.estado === 'pronto') invalidar(chaves.feed, chaves.jornada);

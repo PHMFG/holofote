@@ -24,8 +24,10 @@ export interface ComentarioProps {
   respostas?: number;
   reposts?: number;
   curtido?: boolean;
-  /** Resposta a outra resposta: recuo de 46 e avatar 28, só com curtir. */
+  /** Resposta a outra resposta: recuo de 46 e avatar 28, sem contadores de respostas e reposts. */
   aninhado?: boolean;
+  /** Arroba de quem esta resposta responde, quando não é o comentário de cima (ex.: "@lila"). */
+  para?: string;
   onCurtir?: () => void;
   onResponder?: () => void;
 }
@@ -45,7 +47,7 @@ export function Comentario(p: ComentarioProps) {
         <View
           style={estilos.cabecalho}
           accessible
-          accessibilityLabel={`${p.nome}${p.verificado ? ', verificado' : ''}${p.tag ? `, ${p.tag}` : ''}, ${p.tempo}: ${p.texto}`}
+          accessibilityLabel={`${p.nome}${p.verificado ? ', verificado' : ''}${p.tag ? `, ${p.tag}` : ''}, ${p.tempo}${p.para ? `, para ${p.para}` : ''}: ${p.texto}`}
         >
           <Texto estilo="corpoForte" numberOfLines={1} style={estilos.nome}>
             {p.nome}
@@ -56,6 +58,11 @@ export function Comentario(p: ComentarioProps) {
             {p.tempo}
           </Texto>
         </View>
+        {p.para && (
+          <Texto estilo="legenda" cor="textoSuave" accessible={false} numberOfLines={1}>
+            para {p.para}
+          </Texto>
+        )}
         <Texto accessible={false}>{p.texto}</Texto>
         <View style={estilos.acoes}>
           {!aninhado && p.respostas !== undefined && (
@@ -88,7 +95,7 @@ export function Comentario(p: ComentarioProps) {
             ativo={p.curtido}
             onPress={p.onCurtir}
           />
-          {!aninhado && p.onResponder && (
+          {p.onResponder && (
             <Tocavel
               onPress={p.onResponder}
               accessibilityRole="button"
@@ -106,18 +113,26 @@ export function Comentario(p: ComentarioProps) {
   );
 }
 
-/** Linha "Ver mais N respostas" depois de um aninhado. */
+/**
+ * Linha "Ver mais N respostas" depois de um aninhado, ou "Ver N respostas anteriores" antes das
+ * últimas (`anteriores`), quando a conversa mostra só as mais novas.
+ */
 export function VerMaisRespostas({
   quantidade,
+  anteriores,
   onPress,
 }: {
   quantidade: number;
+  anteriores?: boolean;
   onPress?: () => void;
 }) {
+  const palavra = quantidade === 1 ? 'resposta' : 'respostas';
   return (
     <Tocavel onPress={onPress} accessibilityRole="button" style={estilos.verMais}>
       <Texto estilo="legenda" cor="destaqueTinta">
-        Ver mais {quantidade} {quantidade === 1 ? 'resposta' : 'respostas'}
+        {anteriores
+          ? `Ver ${quantidade} ${palavra} ${quantidade === 1 ? 'anterior' : 'anteriores'}`
+          : `Ver mais ${quantidade} ${palavra}`}
       </Texto>
     </Tocavel>
   );

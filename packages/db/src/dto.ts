@@ -116,7 +116,7 @@ export async function mundoDto(
   db: Db,
   m: LinhaMundo,
   jogadorId: string,
-  momento: { dia: number; periodo: Periodo },
+  momento: { dia: number; periodo: Periodo; agora: Date },
 ): Promise<Mundo> {
   const [jogador] = await db.select().from(personagem).where(eq(personagem.id, jogadorId));
   if (!jogador) throw new Error(`mundoDto: jogador ${jogadorId} não existe`);
@@ -130,6 +130,7 @@ export async function mundoDto(
     objetivoAto: m.objetivoAto,
     estado: m.estado,
     jogador: await personagemDto(db, jogador, jogadorId),
+    agora: iso(momento.agora),
   };
 }
 

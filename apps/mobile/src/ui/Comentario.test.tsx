@@ -21,12 +21,20 @@ describe('Comentario', () => {
     expect(screen.getByRole('button', { name: 'Responder a Duda Marques' })).toBeTruthy();
   });
 
-  it('o aninhado só tem curtir', async () => {
+  it('o aninhado tem curtir e responder, sem contadores, e diz para quem é', async () => {
     const aoCurtir = jest.fn();
     await renderizar(
-      <Comentario {...base} aninhado respostas={4} onResponder={() => {}} onCurtir={aoCurtir} />,
+      <Comentario
+        {...base}
+        aninhado
+        para="@lila"
+        respostas={4}
+        onResponder={() => {}}
+        onCurtir={aoCurtir}
+      />,
     );
-    expect(screen.queryByRole('button', { name: /^Responder/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Responder a Duda Marques' })).toBeTruthy();
+    expect(screen.getByText('para @lila')).toBeTruthy();
     expect(screen.queryByText('4')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: '312 curtidas' }));
     expect(aoCurtir).toHaveBeenCalled();

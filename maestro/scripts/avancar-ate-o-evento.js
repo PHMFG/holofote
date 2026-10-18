@@ -1,3 +1,4 @@
+/* global http, output, APARELHO_ID */ // Globais do runScript do Maestro.
 // Avança o relógio simulado do mundo (rota de desenvolvimento POST /v1/dev/relogio) até as 18h05
 // do dia do próximo evento, para ele ficar "ao vivo". Só funciona contra a API local.
 // Entrada: APARELHO_ID, o id do aparelho do simulador (a linha mais recente de `usuario`).

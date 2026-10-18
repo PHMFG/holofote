@@ -24,7 +24,7 @@ import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Compositor } from '../../ui/Compositor';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
-import { Tela } from '../../ui/Tela';
+import { ComEspacosDaTela, Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Verificado } from '../../ui/Verificado';
 import { useAnimacoes } from '../animacao/animacoes';
@@ -166,7 +166,7 @@ export function TelaDM({ conversaId }: { conversaId: string }) {
     <TecladoEvitavel>
       <Tela
         cabecalho={cabecalho}
-        rolavel={false}
+        rolagemPropria
         gap={0}
         rodape={
           <Compositor
@@ -178,72 +178,85 @@ export function TelaDM({ conversaId }: { conversaId: string }) {
           />
         }
       >
-        <ScrollView
-          ref={rolagem}
-          // A rolagem ocupa a largura toda para a sombra dos balões não ser cortada na margem.
-          style={[estilos.rolagem, { marginHorizontal: -medidas.margemLateral }]}
-          contentContainerStyle={[estilos.mensagens, { paddingHorizontal: medidas.margemLateral }]}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={rolarParaFim}
-          onLayout={rolarParaFim}
-        >
-          {itens.length === 0 && (
-            <Texto cor="textoSuave" style={estilos.vazio}>
-              Nenhuma mensagem ainda. Escreva a primeira para {primeiroNome(nome)}.
-            </Texto>
-          )}
-          {itens.map((item) =>
-            item.tipo === 'separador' ? (
-              <ItemAnimado
-                key={item.chave}
-                registro={entradas}
-                id={item.chave}
-                comLayout={false}
-                comSaida={false}
-                style={estilos.separador}
-              >
-                <Texto estilo="mini" cor="textoSuave">
-                  {item.texto}
+        <ComEspacosDaTela>
+          {(espacos) => (
+            <ScrollView
+              ref={rolagem}
+              // A rolagem ocupa a tela toda, por baixo do cabeçalho e do compositor flutuantes, para
+              // a sombra dos balões não ser cortada; os espaços da Tela evitam esconder a 1ª e a última.
+              style={estilos.rolagem}
+              scrollIndicatorInsets={{ top: espacos.topo, bottom: espacos.base }}
+              contentContainerStyle={[
+                estilos.mensagens,
+                {
+                  paddingHorizontal: medidas.margemLateral,
+                  paddingTop: espacos.topo,
+                  paddingBottom: espacos.base,
+                },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={rolarParaFim}
+              onLayout={rolarParaFim}
+            >
+              {itens.length === 0 && (
+                <Texto cor="textoSuave" style={estilos.vazio}>
+                  Nenhuma mensagem ainda. Escreva a primeira para {primeiroNome(nome)}.
                 </Texto>
-              </ItemAnimado>
-            ) : (
-              <Fragment key={item.chave}>
-                <ItemAnimado
-                  registro={entradas}
-                  id={item.chave}
-                  tipoDeNovo={item.mensagem.minha ? 'balaoMeu' : 'balaoDela'}
-                  comLayout={false}
-                  comSaida={false}
-                  style={[
-                    item.trocaDeLado && estilos.trocaDeLado,
-                    item.mensagem.minha ? estilos.origemDireita : estilos.origemEsquerda,
-                  ]}
-                >
-                  <Balao
-                    texto={item.mensagem.texto}
-                    minha={item.mensagem.minha}
-                    autor={item.mensagem.minha ? 'Você' : nome}
-                  />
-                </ItemAnimado>
-                {ultimoEnvio?.id === item.mensagem.id && ultimaMinha === item.mensagem.id && (
-                  <Animated.View
-                    entering={animacoes.deSubida(180)}
-                    style={estilos.entrega}
-                    accessible
+              )}
+              {itens.map((item) =>
+                item.tipo === 'separador' ? (
+                  <ItemAnimado
+                    key={item.chave}
+                    registro={entradas}
+                    id={item.chave}
+                    comLayout={false}
+                    comSaida={false}
+                    style={estilos.separador}
                   >
-                    <Icone icone={Check} tamanho={12} cor="destaqueTinta" traco={2} />
-                    <Texto estilo="legenda" cor="destaqueTinta">
-                      {textoEntrega(ultimoEnvio.delta)}
+                    <Texto estilo="mini" cor="textoSuave">
+                      {item.texto}
                     </Texto>
-                  </Animated.View>
-                )}
-              </Fragment>
-            ),
+                  </ItemAnimado>
+                ) : (
+                  <Fragment key={item.chave}>
+                    <ItemAnimado
+                      registro={entradas}
+                      id={item.chave}
+                      tipoDeNovo={item.mensagem.minha ? 'balaoMeu' : 'balaoDela'}
+                      comLayout={false}
+                      comSaida={false}
+                      style={[
+                        item.trocaDeLado && estilos.trocaDeLado,
+                        item.mensagem.minha ? estilos.origemDireita : estilos.origemEsquerda,
+                      ]}
+                    >
+                      <Balao
+                        texto={item.mensagem.texto}
+                        minha={item.mensagem.minha}
+                        autor={item.mensagem.minha ? 'Você' : nome}
+                      />
+                    </ItemAnimado>
+                    {ultimoEnvio?.id === item.mensagem.id && ultimaMinha === item.mensagem.id && (
+                      <Animated.View
+                        entering={animacoes.deSubida(180)}
+                        style={estilos.entrega}
+                        accessible
+                      >
+                        <Icone icone={Check} tamanho={12} cor="destaqueTinta" traco={2} />
+                        <Texto estilo="legenda" cor="destaqueTinta">
+                          {textoEntrega(ultimoEnvio.delta)}
+                        </Texto>
+                      </Animated.View>
+                    )}
+                  </Fragment>
+                ),
+              )}
+              {(digitando ?? []).map((p) => (
+                <BalaoDigitando key={p.id} nome={p.nome} style={estilos.trocaDeLado} />
+              ))}
+            </ScrollView>
           )}
-          {(digitando ?? []).map((p) => (
-            <BalaoDigitando key={p.id} nome={p.nome} style={estilos.trocaDeLado} />
-          ))}
-        </ScrollView>
+        </ComEspacosDaTela>
       </Tela>
     </TecladoEvitavel>
   );

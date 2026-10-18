@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useCurtir, useFeed, useJornada, useMundo } from '../../api/consultas';
 import { useTempoReal } from '../../api/tempoReal';
+import { semOpacidade } from '../../tema/cor';
 import { BannerEvento } from '../../telas/feed/BannerEvento';
 import { BarraDoMundo } from '../../telas/feed/BarraDoMundo';
 import { Historias } from '../../telas/feed/Historias';
@@ -38,10 +39,6 @@ const ALTURA_PILULA = 63;
 /** Quanto o fim da pílula fica acima do primeiro item da lista. */
 const RESPIRO_SOB_A_PILULA = 8;
 
-/** A cor do fundo com opacidade 0, para o gradiente não passar por um cinza no meio. */
-function fundoTransparente(cor: string): string {
-  return /^#[0-9a-f]{6}$/i.test(cor) ? `${cor}00` : 'transparent';
-}
 /** Quantos posts da primeira carga entram em cascata: os que cabem na tela. */
 const POSTS_EM_CASCATA = 5;
 
@@ -214,7 +211,7 @@ export default function Feed() {
       <LinearGradient
         pointerEvents="none"
         // Opaco sob a barra de status (o relógio fica legível) e some até o meio da pílula.
-        colors={[cores.fundo, cores.fundo, fundoTransparente(cores.fundo)]}
+        colors={[cores.fundo, cores.fundo, semOpacidade(cores.fundo)]}
         locations={[0, insets.top / (baseDaPilula - ALTURA_PILULA / 2), 1]}
         style={[estilos.veuDoTopo, { height: baseDaPilula - ALTURA_PILULA / 2 }]}
       />

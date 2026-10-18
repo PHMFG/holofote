@@ -14,10 +14,10 @@ import {
   personagensPorId,
   relacao,
 } from '@holofote/db';
-import { Alerta, Personagem, RespostaRelacoes } from '@holofote/shared';
+import { Alerta, PedidoSilenciar, Personagem, RespostaRelacoes } from '@holofote/shared';
 import { z } from 'zod';
 import type { Contexto } from '../contexto';
-import { naoEncontrado } from '../infra/erros';
+import { ErroApi, naoEncontrado } from '../infra/erros';
 import { personagemDto } from '../servicos/dto';
 import { carregarSessao, exigirMundo } from '../servicos/sessao';
 import type { AppZod } from './tipos';
@@ -34,6 +34,34 @@ export function rotasPessoas(app: AppZod, ctx: Contexto) {
         .where(and(eq(personagem.id, req.params.id), eq(personagem.mundoId, sessao.mundo.id)));
       if (!p) throw naoEncontrado('Personagem não encontrado.');
       return personagemDto(ctx.db, p, sessao.jogador.id);
+    },
+  );
+
+  // Silenciar: o personagem some do feed e da lista de conversas e o worker não o chama para
+  // reagir. Grátis, reversível e sem IA.
+  app.post(
+    '/v1/personagens/:id/silenciar',
+    {
+      schema: {
+        params: z.object({ id: z.uuid() }),
+        body: PedidoSilenciar,
+        response: { 200: Personagem },
+      },
+    },
+    async (req) => {
+      const sessao = exigirMundo(await carregarSessao(ctx, req.usuarioId));
+      const [p] = await ctx.db
+        .select()
+        .from(personagem)
+        .where(and(eq(personagem.id, req.params.id), eq(personagem.mundoId, sessao.mundo.id)));
+      if (!p) throw naoEncontrado('Personagem não encontrado.');
+      if (p.papel === 'jogador') throw new ErroApi(400, 'invalido', 'Você não pode se silenciar.');
+      const [atualizado] = await ctx.db
+        .update(personagem)
+        .set({ silenciado: req.body.silenciado })
+        .where(eq(personagem.id, p.id))
+        .returning();
+      return personagemDto(ctx.db, atualizado!, sessao.jogador.id);
     },
   );
 

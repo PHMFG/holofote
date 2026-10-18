@@ -24,7 +24,21 @@ export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 export type Executor = Db | Tx;
 
 /** Quanto uma sugestão da IA pode mexer sozinha numa relação. */
-export const TETO_SUGESTAO = 3;
+export const TETO_SUGESTAO = 2;
+/** Acima (ou abaixo) disso a IA não empurra mais para o extremo: só o motor leva até lá. */
+export const FAIXA_EXTREMA = { alta: 85, baixa: 15 } as const;
+
+/**
+ * Quanto da sugestão da IA vale para uma relação com essa afinidade: no máximo ±TETO_SUGESTAO e
+ * nada na direção do extremo quando a relação já está na faixa extrema. Sem isso, um jogador que
+ * posta muito leva as relações a 100 % ou 1 % num dia só com os empurrões da IA.
+ */
+export function sugestaoEfetiva(afinidade: number, sugestao: number): number {
+  const pedido = Math.max(-TETO_SUGESTAO, Math.min(TETO_SUGESTAO, Math.round(sugestao)));
+  if (pedido > 0 && afinidade >= FAIXA_EXTREMA.alta) return 0;
+  if (pedido < 0 && afinidade <= FAIXA_EXTREMA.baixa) return 0;
+  return pedido === 0 ? 0 : pedido;
+}
 
 export function vinculoDoRotulo(tipo: LinhaPersonagem['tipoVinculo']): 'amizade' | 'parceria' {
   return tipo === 'parceria' || tipo === 'mentor' ? 'parceria' : 'amizade';
@@ -60,7 +74,14 @@ export async function aplicarSugestaoDeRelacao(
     .where(and(eq(relacao.deId, jogadorId), eq(relacao.paraId, outro.id)))
     .for('update');
   if (!rel) return 0;
-  const afinidade = aplicarDeltaRelacao(rel.afinidade, valor);
+  // O teto e a faixa extrema dependem da afinidade atual, lida com a linha travada.
+  const permitido = sugestaoEfetiva(rel.afinidade, sugestao);
+  const passo =
+    Math.sign(valor) === Math.sign(permitido)
+      ? Math.min(Math.abs(valor), Math.abs(permitido)) * Math.sign(valor)
+      : 0;
+  if (passo === 0) return 0;
+  const afinidade = aplicarDeltaRelacao(rel.afinidade, passo);
   const efetivo = afinidade - rel.afinidade;
   if (efetivo === 0) return 0;
   await tx

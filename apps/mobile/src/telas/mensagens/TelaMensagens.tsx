@@ -36,7 +36,9 @@ export function TelaMensagens() {
   const [escolhendo, setEscolhendo] = useState(false);
 
   const ordenadas = useMemo(
-    () => [...(conversas.data ?? [])].sort((a, b) => instante(b) - instante(a)),
+    // Quem está silenciado fica fora da lista, mas a conversa continua abrindo pelo perfil.
+    () =>
+      (conversas.data ?? []).filter((c) => !c.silenciada).sort((a, b) => instante(b) - instante(a)),
     [conversas.data],
   );
   const termo = normalizar(busca.trim());
@@ -44,7 +46,7 @@ export function TelaMensagens() {
   const elenco = (relacoes.data?.nos ?? [])
     .filter((n) => n.personagem.papel === 'elenco' && (!termo || combina(termo, n.personagem)))
     .sort((a, b) => b.relacao.afinidade - a.relacao.afinidade);
-  const semConversas = conversas.data?.length === 0;
+  const semConversas = conversas.data !== undefined && ordenadas.length === 0;
   const mostrarElenco = escolhendo || termo.length > 0 || semConversas;
 
   const comecar = (personagem: PersonagemResumo) => {

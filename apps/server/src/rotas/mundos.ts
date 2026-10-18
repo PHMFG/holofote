@@ -4,12 +4,14 @@ import {
   eq,
   gt,
   historiaVista,
+  inArray,
   iniciaisDe,
   isNull,
   lt,
   lte,
   mundo as tabelaMundo,
   normalizarHandle,
+  not,
   or,
   personagem,
   personagemResumoDto,
@@ -138,10 +140,18 @@ export function rotasMundos(app: AppZod, ctx: Contexto) {
       const sessao = exigirMundo(await carregarSessao(ctx, req.usuarioId));
       if (req.params.id !== sessao.mundo.id) throw naoEncontrado('Mundo não encontrado.');
       const cursor = decodificarCursor(req.query.cursor);
+      // Quem o jogador silenciou não aparece no feed, nem em post nem em história.
+      const silenciados = (
+        await ctx.db
+          .select({ id: personagem.id })
+          .from(personagem)
+          .where(and(eq(personagem.mundoId, sessao.mundo.id), eq(personagem.silenciado, true)))
+      ).map((p) => p.id);
       const visiveis = and(
         eq(post.mundoId, sessao.mundo.id),
         eq(post.oculto, false),
         lte(post.entregarEm, sessao.agora),
+        silenciados.length > 0 ? not(inArray(post.autorId, silenciados)) : undefined,
       );
 
       const linhas = await ctx.db

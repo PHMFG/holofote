@@ -8,6 +8,7 @@ import { promptDm } from './dm';
 import { promptFeedInicial, promptLoteDiario } from './feed';
 import { promptFicha } from './ficha';
 import { promptMemoria } from './memoria';
+import { promptNovoAto } from './novo-ato';
 import type { EntradasJobs } from './tipos';
 
 export { REGRAS_ESTILO, VERSAO_PROMPTS } from './estilo';
@@ -24,6 +25,7 @@ export {
 } from './feed';
 export { TAREFA_FICHA, promptFicha } from './ficha';
 export { TAREFA_MEMORIA, promptMemoria } from './memoria';
+export { TAREFA_NOVO_ATO, promptNovoAto } from './novo-ato';
 export type * from './tipos';
 
 export const PROMPTS: { [J in NomeJob]: (entrada: EntradasJobs[J]) => string } = {
@@ -35,6 +37,7 @@ export const PROMPTS: { [J in NomeJob]: (entrada: EntradasJobs[J]) => string } =
   lote_diario: promptLoteDiario,
   memoria: promptMemoria,
   ficha: promptFicha,
+  novo_ato: promptNovoAto,
 };
 
 /** Prompt de usuário do job (sempre começa com `JOB: <nome>`). */
@@ -66,7 +69,7 @@ export function idsDaEntrada<J extends NomeJob>(job: J, entrada: EntradasJobs[J]
       };
     }
     default:
-      // dm, criar_mundo e ficha não devolvem ids.
+      // dm, criar_mundo, ficha e novo_ato não devolvem ids.
       return { personagens: [] };
   }
 }

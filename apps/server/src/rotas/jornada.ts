@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  count,
   desc,
   eq,
   eventoAgendado,
@@ -15,12 +16,39 @@ import { Conta, Jornada, ResumoDia } from '@holofote/shared';
 import { z } from 'zod';
 import { publicar, type Contexto } from '../contexto';
 import { ErroApi, naoEncontrado } from '../infra/erros';
-import { enfileirarLote } from '../infra/filas';
+import { enfileirarLote, jobIdDoNovoAto } from '../infra/filas';
 import { estadoDosMarcos } from '../servicos/acoes';
 import { moverGemas, recarregarEnergia } from '../servicos/carteira';
 import { carregarSessao, diaEPeriodo, exigirMundo } from '../servicos/sessao';
 import { contaDto } from './conta';
 import type { AppZod } from './tipos';
+
+/**
+ * Depois de resgatar um marco: se foi o último do ato atual, enfileira o `novo_ato`. Melhor
+ * esforço, como a ficha: o resgate já valeu, e o varredor enfileira de novo se algo falhar aqui.
+ */
+async function enfileirarNovoAtoSeTerminou(
+  ctx: Contexto,
+  mundoId: string,
+  atoDoMarco: number,
+  atoDoMundo: number,
+) {
+  if (atoDoMarco !== atoDoMundo) return;
+  try {
+    const [{ pendentes } = { pendentes: 1 }] = await ctx.db
+      .select({ pendentes: count() })
+      .from(marco)
+      .where(and(eq(marco.mundoId, mundoId), eq(marco.ato, atoDoMarco), isNull(marco.resgatadoEm)));
+    if (pendentes > 0) return;
+    const ato = atoDoMarco + 1;
+    await enfileirarLote(ctx, 'novo_ato', { mundoId, ato }, jobIdDoNovoAto(mundoId, ato));
+  } catch (erro) {
+    ctx.log?.warn(
+      { job: 'novo_ato', mundoId, erro: (erro as Error).message },
+      'novo_ato não enfileirado; o varredor tenta de novo',
+    );
+  }
+}
 
 export function rotasJornada(app: AppZod, ctx: Contexto) {
   app.get('/v1/jornada', { schema: { response: { 200: Jornada } } }, async (req) => {
@@ -62,6 +90,10 @@ export function rotasJornada(app: AppZod, ctx: Contexto) {
         marcos.map((m) => ({ concluido: m.estado === 'concluido', requisitos: m.requisitos })),
       ),
       marcos,
+      // Ato terminado e resgatado: o job `novo_ato` está escrevendo o próximo.
+      ...(marcos.length > 0 && marcos.every((m) => m.resgatado)
+        ? { proximoAto: { ato: sessao.mundo.ato + 1 } }
+        : {}),
       proximoEvento: proximo
         ? {
             id: proximo.id,
@@ -107,6 +139,7 @@ export function rotasJornada(app: AppZod, ctx: Contexto) {
           `ficha-${m.id}`,
         );
       }
+      await enfileirarNovoAtoSeTerminou(ctx, sessao.mundo.id, m.ato, sessao.mundo.ato);
       const conta = await contaDto(ctx, await carregarSessao(ctx, req.usuarioId));
       await publicar(ctx, sessao.mundo.id, { tipo: 'energia', energia: conta.energia });
       return conta;

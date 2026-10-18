@@ -13,7 +13,7 @@ import { CampoTexto } from '../ui/CampoTexto';
 import { Cartao } from '../ui/Cartao';
 import { Chip } from '../ui/Chip';
 import { RotuloSecao } from '../ui/Rotulo';
-import { Tela } from '../ui/Tela';
+import { Tela, type TrechoVisivel } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
 
 const LIMITE = 280;
@@ -37,6 +37,8 @@ export default function NovoPost() {
   const [texto, setTexto] = useState('');
   const [tom, setTom] = useState<Tom>('sincero');
   const [marcados, setMarcados] = useState<string[]>([]);
+  // Onde estão os chips de tom: com o teclado aberto a Tela rola até eles ficarem visíveis.
+  const [trechoDoTom, setTrechoDoTom] = useState<TrechoVisivel | null>(null);
 
   const textoLimpo = texto.trim();
   const pedido = useMemo(() => ({ texto: textoLimpo, tom, marcados }), [textoLimpo, tom, marcados]);
@@ -80,6 +82,7 @@ export default function NovoPost() {
     <KeyboardAvoidingView behavior="padding" style={estilos.flex}>
       <Tela
         cabecalho={<Cabecalho titulo="Novo post" navegacao="fechar" />}
+        revelarAoTeclado={trechoDoTom}
         rodape={
           <BotaoMetal
             rotulo={`Publicar · ${custo} energia`}
@@ -114,7 +117,12 @@ export default function NovoPost() {
           />
         </Cartao>
 
-        <View style={estilos.secao}>
+        <View
+          style={estilos.secao}
+          onLayout={(e) =>
+            setTrechoDoTom({ y: e.nativeEvent.layout.y, altura: e.nativeEvent.layout.height })
+          }
+        >
           <RotuloSecao texto="Tom" />
           <View style={estilos.chips}>
             {TONS.map((t) => (

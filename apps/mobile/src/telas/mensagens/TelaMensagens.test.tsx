@@ -47,6 +47,7 @@ const conversa = (p: PersonagemResumo, extra: Partial<Conversa>): Conversa => ({
   ultima: null,
   naoLidas: 0,
   puxouConversa: false,
+  silenciada: false,
   ...extra,
 });
 
@@ -55,6 +56,7 @@ const comDuda = conversa(duda, {
   ultima: { texto: 'bora fechar o estúdio quinta?', criadoEm: antes(0.2), minha: false },
   naoLidas: 1,
   puxouConversa: true,
+  silenciada: false,
 });
 const comVic = conversa(vic, {
   relacao: { afinidade: 38, rotulo: 'Rivais com respeito' },
@@ -103,6 +105,29 @@ describe('14 · Mensagens', () => {
     ]);
     expect(screen.getByText('Novo')).toBeTruthy();
     expect(screen.getByText('Parceria criativa · 72%')).toBeTruthy();
+  });
+
+  it('conversa de quem está silenciado fica fora da lista; começar de novo reabre a mesma', async () => {
+    const silenciada = { ...comVic, silenciada: true };
+    simular([comDuda, silenciada]);
+    await renderizarTela(<TelaMensagens />);
+
+    await screen.findByText('Duda Marques');
+    expect(linhas()).toHaveLength(1);
+    expect(screen.queryByText('Vic Ferraz', { exact: false })).toBeNull();
+
+    // O elenco continua na fileira de nova conversa e reaproveita a conversa existente.
+    await fireEvent.changeText(screen.getByLabelText('Buscar no elenco'), 'vic');
+    await fireEvent.press(await screen.findByRole('button', { name: /^Conversar com Vic Ferraz/ }));
+    expect(router.push).toHaveBeenCalledWith(`/dm/${comVic.id}`);
+  });
+
+  it('só com conversas silenciadas, mostra o estado vazio', async () => {
+    simular([{ ...comVic, silenciada: true }]);
+    await renderizarTela(<TelaMensagens />);
+    expect(
+      await screen.findByText('Nenhuma conversa ainda. Escolha alguém do elenco para começar.'),
+    ).toBeTruthy();
   });
 
   it('tocar numa conversa abre a DM', async () => {

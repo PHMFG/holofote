@@ -9,13 +9,16 @@ import {
   eq,
   eventoAgendado,
   lancamentoEnergia,
+  marco as tabelaMarco,
   mensagem,
   migrar,
   mundo as tabelaMundo,
+  ne,
   post,
   type ConexaoDb,
 } from '@holofote/db';
 import { canalDoMundo, FILAS } from '@holofote/shared';
+import { UnrecoverableError, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
@@ -24,7 +27,7 @@ import { lerConfig } from './config';
 import { emitirToken } from './infra/auth';
 import { Difusor } from './infra/difusor';
 import { criarFilas, fecharFilas, type Filas } from './infra/filas';
-import { varrerPendentes } from './infra/varredor';
+import { REPETE_NOVO_ATO_MS, varrerPendentes } from './infra/varredor';
 
 const URL_BANCO =
   process.env.DATABASE_URL_TESTE_API ??
@@ -670,6 +673,233 @@ describe('histórias', () => {
   });
 });
 
+describe('silenciar personagem', () => {
+  it('silenciado some do feed (posts e histórias) e da lista de conversas; deixar de silenciar traz de volta', async () => {
+    const m = await mundoDeExemplo();
+    const feedAntes = (await pedir(m.token, 'GET', `/v1/mundos/${m.mundoId}/feed`)).json();
+    expect(
+      feedAntes.itens.some((p: { autor: { id: string } }) => p.autor.id === m.personagens.vic),
+    ).toBe(true);
+    expect(
+      feedAntes.historias.some((h: { autor: { id: string } }) => h.autor.id === m.personagens.vic),
+    ).toBe(true);
+    const energia = await energiaDe(m.token);
+
+    const silenciado = await pedir(
+      m.token,
+      'POST',
+      `/v1/personagens/${m.personagens.vic}/silenciar`,
+      {
+        silenciado: true,
+      },
+    );
+    expect(silenciado.statusCode).toBe(200);
+    expect(silenciado.json()).toMatchObject({ id: m.personagens.vic, silenciado: true });
+    expect(silenciado.json().relacao).not.toBeNull();
+    expect(
+      (await pedir(m.token, 'GET', `/v1/personagens/${m.personagens.vic}`)).json().silenciado,
+    ).toBe(true);
+
+    const feed = (await pedir(m.token, 'GET', `/v1/mundos/${m.mundoId}/feed`)).json();
+    expect(feed.itens.length).toBeGreaterThan(0);
+    expect(
+      feed.itens.some((p: { autor: { id: string } }) => p.autor.id === m.personagens.vic),
+    ).toBe(false);
+    expect(
+      feed.historias.some((h: { autor: { id: string } }) => h.autor.id === m.personagens.vic),
+    ).toBe(false);
+    expect(feed.historias.length).toBeGreaterThan(0);
+
+    // A conversa continua existindo (abre pelo perfil), só marcada para o app tirar da lista.
+    const conversas = (await pedir(m.token, 'GET', '/v1/conversas')).json() as {
+      id: string;
+      silenciada: boolean;
+    }[];
+    expect(conversas.find((c) => c.id === m.conversas.vic)?.silenciada).toBe(true);
+    expect(conversas.find((c) => c.id === m.conversas.duda)?.silenciada).toBe(false);
+
+    const volta = await pedir(m.token, 'POST', `/v1/personagens/${m.personagens.vic}/silenciar`, {
+      silenciado: false,
+    });
+    expect(volta.json()).toMatchObject({ silenciado: false });
+    const feedDepois = (await pedir(m.token, 'GET', `/v1/mundos/${m.mundoId}/feed`)).json();
+    expect(
+      feedDepois.itens.some((p: { autor: { id: string } }) => p.autor.id === m.personagens.vic),
+    ).toBe(true);
+    expect(await energiaDe(m.token)).toBe(energia);
+  });
+
+  it('corpo inválido dá 400 e o jogador não se silencia', async () => {
+    const m = await mundoDeExemplo();
+    const url = `/v1/personagens/${m.personagens.vic}/silenciar`;
+    expect((await pedir(m.token, 'POST', url, { silenciado: 'sim' })).statusCode).toBe(400);
+    expect((await pedir(m.token, 'POST', url, {})).statusCode).toBe(400);
+    const eu = await pedir(m.token, 'POST', `/v1/personagens/${m.jogadorId}/silenciar`, {
+      silenciado: true,
+    });
+    expect(eu.statusCode).toBe(400);
+    expect(eu.json()).toMatchObject({ erro: 'invalido' });
+  });
+});
+
+describe('virada de ato', () => {
+  const idDoJob = (mundoId: string, ato: number) => `novo_ato-${mundoId}-${ato}`;
+  const resgatarOutros = (mundoId: string, quando: Date = AGORA) =>
+    conexao.db
+      .update(tabelaMarco)
+      .set({ liberadoEm: quando, resgatadoEm: quando })
+      .where(and(eq(tabelaMarco.mundoId, mundoId), ne(tabelaMarco.ordem, 1)));
+
+  it('resgatar um marco que não é o último não enfileira o novo_ato nem mexe na jornada', async () => {
+    const m = await mundoDeExemplo();
+    await pedir(m.token, 'POST', `/v1/marcos/${m.marcoIds[0]}/resgatar`);
+    expect(await filas.lote.getJob(idDoJob(m.mundoId, 2))).toBeUndefined();
+    const jornada = (await pedir(m.token, 'GET', '/v1/jornada')).json();
+    expect(jornada.ato).toBe(1);
+    expect(jornada).not.toHaveProperty('proximoAto');
+  });
+
+  it('resgatar o 5º marco enfileira o novo_ato do ato seguinte e a jornada avisa que ele chega', async () => {
+    const m = await mundoDeExemplo();
+    await resgatarOutros(m.mundoId);
+    const conta = await pedir(m.token, 'POST', `/v1/marcos/${m.marcoIds[0]}/resgatar`);
+    expect(conta.statusCode).toBe(200);
+    const job = await filas.lote.getJob(idDoJob(m.mundoId, 2));
+    expect(job?.name).toBe('novo_ato');
+    expect(job?.data).toEqual({ mundoId: m.mundoId, ato: 2 });
+
+    const jornada = (await pedir(m.token, 'GET', '/v1/jornada')).json();
+    expect(jornada).toMatchObject({ ato: 1, progressoAto: 1, proximoAto: { ato: 2 } });
+    expect(jornada.marcos.every((x: { resgatado: boolean }) => x.resgatado)).toBe(true);
+  });
+
+  it('com o job fora do ar o resgate continua valendo', async () => {
+    const m = await mundoDeExemplo();
+    await resgatarOutros(m.mundoId);
+    const antes = ctx.filas.lote.add;
+    ctx.filas.lote.add = async () => {
+      throw new Error('redis fora');
+    };
+    try {
+      const r = await pedir(m.token, 'POST', `/v1/marcos/${m.marcoIds[0]}/resgatar`);
+      expect(r.statusCode).toBe(200);
+    } finally {
+      ctx.filas.lote.add = antes;
+    }
+    expect(await filas.lote.getJob(idDoJob(m.mundoId, 2))).toBeUndefined();
+    // O varredor enfileira depois de 2 minutos.
+    await conexao.db
+      .update(tabelaMarco)
+      .set({ resgatadoEm: new Date(AGORA.getTime() - 3 * 60_000) })
+      .where(eq(tabelaMarco.mundoId, m.mundoId));
+    await varrerPendentes(ctx);
+    expect((await filas.lote.getJob(idDoJob(m.mundoId, 2)))?.data).toEqual({
+      mundoId: m.mundoId,
+      ato: 2,
+    });
+  });
+
+  it('o ato novo aparece na jornada quando o mundo avança, sem o aviso de chegada', async () => {
+    const m = await mundoDeExemplo();
+    await resgatarOutros(m.mundoId);
+    await pedir(m.token, 'POST', `/v1/marcos/${m.marcoIds[0]}/resgatar`);
+    await conexao.db
+      .update(tabelaMundo)
+      .set({ ato: 2, objetivoAto: 'Ato dois' })
+      .where(eq(tabelaMundo.id, m.mundoId));
+    await conexao.db.insert(tabelaMarco).values({
+      mundoId: m.mundoId,
+      ato: 2,
+      ordem: 1,
+      titulo: 'Fama posta à prova',
+      descricao: 'Provar que a fama fica.',
+      requisitos: [{ chave: 'seguidores', rotulo: 'Seguidores', alvo: 500_000 }],
+      recompensa: { gemas: 25, energiaCheia: true, personagemNovo: true, acaoNova: 'Enquete' },
+    });
+    const jornada = (await pedir(m.token, 'GET', '/v1/jornada')).json();
+    expect(jornada).toMatchObject({ ato: 2, objetivo: 'Ato dois' });
+    expect(jornada.marcos).toHaveLength(1);
+    expect(jornada.marcos[0]).toMatchObject({ titulo: 'Fama posta à prova', estado: 'atual' });
+    expect(jornada).not.toHaveProperty('proximoAto');
+  });
+
+  it('varredor: reenfileira o ato terminado há mais de 2 min sem job; o recente e o que tem job ficam', async () => {
+    const velho = await mundoDeExemplo();
+    const recente = await mundoDeExemplo();
+    const comJob = await mundoDeExemplo();
+    for (const [mundo, minutos] of [
+      [velho, 3],
+      [recente, 1],
+      [comJob, 5],
+    ] as const) {
+      await resgatarOutros(mundo.mundoId, new Date(AGORA.getTime() - minutos * 60_000));
+      await conexao.db
+        .update(tabelaMarco)
+        .set({ resgatadoEm: new Date(AGORA.getTime() - minutos * 60_000) })
+        .where(and(eq(tabelaMarco.mundoId, mundo.mundoId), eq(tabelaMarco.ordem, 1)));
+    }
+    await filas.lote.add(
+      'novo_ato',
+      { mundoId: comJob.mundoId, ato: 2 },
+      { jobId: idDoJob(comJob.mundoId, 2), delay: 60_000 },
+    );
+    relogio = AGORA;
+    await varrerPendentes(ctx);
+    expect((await filas.lote.getJob(idDoJob(velho.mundoId, 2)))?.data).toEqual({
+      mundoId: velho.mundoId,
+      ato: 2,
+    });
+    expect(await filas.lote.getJob(idDoJob(recente.mundoId, 2))).toBeUndefined();
+    expect((await filas.lote.getJob(idDoJob(comJob.mundoId, 2)))?.opts.delay).toBe(60_000);
+  });
+
+  it('varredor: job que falhou de vez só volta depois do intervalo de repetição', async () => {
+    const m = await mundoDeExemplo();
+    await resgatarOutros(m.mundoId, new Date(AGORA.getTime() - 60 * 60_000));
+    await conexao.db
+      .update(tabelaMarco)
+      .set({ resgatadoEm: new Date(AGORA.getTime() - 60 * 60_000) })
+      .where(eq(tabelaMarco.mundoId, m.mundoId));
+    const jobId = idDoJob(m.mundoId, 2);
+    await filas.lote.add('novo_ato', { mundoId: m.mundoId, ato: 2 }, { jobId });
+    const conexaoWorker = new Redis(URL_REDIS, { maxRetriesPerRequest: null });
+    const trabalhador = new Worker(
+      FILAS.lote,
+      async () => {
+        throw new UnrecoverableError('IA fora do ar');
+      },
+      { connection: conexaoWorker },
+    );
+    try {
+      for (
+        let i = 0;
+        i < 100 && (await filas.lote.getJob(jobId).then((j) => j?.getState())) !== 'failed';
+        i++
+      ) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      const falhou = (await filas.lote.getJob(jobId))!;
+      expect(await falhou.getState()).toBe('failed');
+    } finally {
+      await trabalhador.close();
+      await conexaoWorker.quit();
+    }
+
+    // Terminou há pouco: espera.
+    relogio = new Date(Date.now() + 60_000);
+    await varrerPendentes(ctx);
+    expect(await (await filas.lote.getJob(jobId))!.getState()).toBe('failed');
+
+    // Passado o intervalo: o job antigo sai e entra um novo, na fila.
+    relogio = new Date(Date.now() + REPETE_NOVO_ATO_MS + 60_000);
+    const resultado = await varrerPendentes(ctx);
+    expect(resultado.reenfileirados).toBeGreaterThanOrEqual(1);
+    expect(await (await filas.lote.getJob(jobId))!.getState()).toBe('waiting');
+    await (await filas.lote.getJob(jobId))!.remove();
+    relogio = AGORA;
+  });
+});
+
 describe('autorização entre mundos', () => {
   it('ids de outro mundo dão 404', async () => {
     const a = await mundoDeExemplo();
@@ -684,6 +914,7 @@ describe('autorização entre mundos', () => {
       ['POST', `/v1/conversas/${b.conversas.vic}/mensagens`, { texto: 'oi' }],
       ['GET', `/v1/personagens/${b.personagens.vic}`],
       ['POST', `/v1/personagens/${b.personagens.vic}/conversa`],
+      ['POST', `/v1/personagens/${b.personagens.vic}/silenciar`, { silenciado: true }],
       ['GET', `/v1/eventos/${b.eventoId}`],
       ['POST', `/v1/eventos/${b.eventoId}/campanha`, { acaoId: 'ensaiar' }],
       ['POST', `/v1/marcos/${b.marcoIds[0]}/resgatar`],

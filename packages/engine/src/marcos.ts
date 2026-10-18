@@ -53,6 +53,14 @@ export const ESCALA_REQUISITOS: Readonly<
 
 const VARIACAO_ALVO = [0.9, 1.1] as const;
 
+/** Quanto cada ato novo acrescenta ao fator de dificuldade (ato 1 = 1, ato 2 = 1,25...). */
+export const ACRESCIMO_POR_ATO = 0.25;
+
+/** Fator que multiplica os degraus da escala: o Ato 1 usa a escala como está; os seguintes, mais. */
+export function fatorDoAto(ato: number): number {
+  return 1 + ACRESCIMO_POR_ATO * (Math.max(1, Math.floor(ato)) - 1);
+}
+
 /** Valores no início do ato. Contadores ausentes valem 0 (primeiro ato). */
 export interface EstadoInicialMarcos {
   seguidores: number;
@@ -88,15 +96,19 @@ function ordemValida(ordem: number): number {
   return limitar(Math.floor(ordem), 1, MARCOS_POR_ATO);
 }
 
-/** Alvo de uma chave num marco. Sorteia só a variação de ±10 %. */
+/**
+ * Alvo de uma chave num marco. Sorteia só a variação de ±10 %. O estado inicial é o do início do
+ * ato (a partir do Ato 2, os números atuais do jogador) e `ato` aplica o fator de dificuldade.
+ */
 export function alvoDoRequisito(
   chave: ChaveRequisito,
   ordem: number,
   estadoInicial: EstadoInicialMarcos,
   rng: Rng,
+  ato = 1,
 ): number {
   const escala = ESCALA_REQUISITOS[chave];
-  const degrau = escala.degraus[ordemValida(ordem) - 1] as number;
+  const degrau = (escala.degraus[ordemValida(ordem) - 1] as number) * fatorDoAto(ato);
   const variado = degrau * entre(rng, VARIACAO_ALVO[0], VARIACAO_ALVO[1]);
   if (escala.modo === 'fator') {
     // Base mínima de 1 000 para uma conta quase vazia ainda ter meta com sentido.
@@ -109,18 +121,23 @@ export function alvoDoRequisito(
 
 /**
  * Requisitos de um marco (ordem 1 a 5): seguidores sempre, mais 1 chave no marco 1 e 2 chaves
- * a partir do marco 2, sorteadas sem repetição entre as liberadas para a ordem.
+ * a partir do marco 2, sorteadas sem repetição entre as liberadas para a ordem. Fama e carisma
+ * já no teto (100) não entram: o alvo não passaria do que o jogador já tem. A partir do Ato 2,
+ * `estadoInicial` traz os números atuais do jogador e `ato` deixa os alvos mais difíceis.
  */
 export function requisitosDoMarco(
   ordem: number,
   estadoInicial: EstadoInicialMarcos,
   rng: Rng,
+  ato = 1,
 ): RequisitoMarco[] {
   const n = ordemValida(ordem);
   const extras = n === 1 ? 1 : 2;
   let candidatas = ORDEM_REQUISITOS.filter((chave) => {
     const escala = ESCALA_REQUISITOS[chave];
-    return escala.peso > 0 && escala.aPartirDe <= n;
+    const noTeto =
+      (chave === 'fama' || chave === 'carisma') && estadoInicial[chave] >= ATRIBUTO.max;
+    return escala.peso > 0 && escala.aPartirDe <= n && !noTeto;
   }).map((chave) => ({ chave, peso: ESCALA_REQUISITOS[chave].peso }));
 
   const chaves: ChaveRequisito[] = ['seguidores'];
@@ -133,7 +150,7 @@ export function requisitosDoMarco(
   return ORDEM_REQUISITOS.filter((chave) => chaves.includes(chave)).map((chave) => ({
     chave,
     rotulo: ROTULOS_REQUISITO[chave],
-    alvo: alvoDoRequisito(chave, n, estadoInicial, rng),
+    alvo: alvoDoRequisito(chave, n, estadoInicial, rng, ato),
   }));
 }
 

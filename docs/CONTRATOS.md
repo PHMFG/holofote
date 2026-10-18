@@ -31,43 +31,45 @@ O evento entra ao vivo no dia marcado a partir da hora local em que o período c
 
 ## Rotas
 
-| Método e rota                    | Corpo                                           | Resposta                                                         | Energia |
-| -------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------- | ------- |
-| `POST /auth/anonimo`             | `PedidoAuth`                                    | `RespostaAuth`                                                   | —       |
-| `GET /conta`                     | —                                               | `Conta`                                                          | —       |
-| `PATCH /conta/aparencia`         | `Aparencia`                                     | `Conta`                                                          | —       |
-| `POST /conta/plus`               | `{ ativo: boolean }`                            | `Conta` (placebo, sem cobrança)                                  | —       |
-| `POST /mundos`                   | `PedidoCriarMundo`                              | `Mundo` em `criando`; o job `criar_mundo` avisa pelo WS          | —       |
-| `GET /mundos/atual`              | —                                               | `Mundo`                                                          | —       |
-| `DELETE /mundos/atual`           | —                                               | 204 (recomeçar: apaga o mundo; energia e gemas ficam na conta)   | —       |
-| `GET /mundos/:id/feed?cursor=`   | —                                               | `RespostaFeed`                                                   | —       |
-| `POST /posts/previa`             | `PedidoPost`                                    | `RespostaPrevia`                                                 | 0       |
-| `POST /posts`                    | `PedidoPost`                                    | 201 `RespostaAcaoComPost`                                        | 1       |
-| `GET /posts/:id`                 | —                                               | `Post`                                                           | —       |
-| `POST /posts/:id/curtir`         | —                                               | `Post` (alterna)                                                 | 0       |
-| `GET /posts/:id/respostas`       | —                                               | `RespostaThread`                                                 | —       |
-| `POST /posts/:id/respostas`      | `PedidoTexto`                                   | 201 `RespostaAcaoComPost`                                        | 1       |
-| `GET /historias/:id`             | —                                               | `Post` (marca como vista)                                        | —       |
-| `POST /historias/:id/voto`       | `PedidoVoto`                                    | `Post`                                                           | 0       |
-| `POST /historias/:id/resposta`   | `PedidoTexto`                                   | 201 `RespostaMensagem` (vira DM)                                 | 1       |
-| `GET /conversas`                 | —                                               | `Conversa[]`                                                     | —       |
-| `POST /personagens/:id/conversa` | —                                               | `Conversa` (abre ou devolve a existente)                         | —       |
-| `GET /conversas/:id/mensagens`   | —                                               | `Mensagem[]` (zera não lidas)                                    | —       |
-| `POST /conversas/:id/mensagens`  | `PedidoTexto`                                   | 201 `RespostaMensagem`                                           | 1       |
-| `GET /personagens/:id`           | —                                               | `Personagem`                                                     | —       |
-| `GET /relacoes`                  | —                                               | `RespostaRelacoes`                                               | —       |
-| `GET /alertas`                   | —                                               | `Alerta[]`                                                       | —       |
-| `POST /alertas/lidos`            | —                                               | 204                                                              | —       |
-| `GET /registro`                  | —                                               | `ItemRegistro[]`                                                 | —       |
-| `POST /acoes/:id/desfazer`       | —                                               | `Consequencia`                                                   | 2       |
-| `GET /jornada`                   | —                                               | `Jornada`                                                        | —       |
-| `POST /marcos/:id/resgatar`      | —                                               | `Conta`                                                          | —       |
-| `GET /eventos/:id`               | —                                               | `EventoAgendado`                                                 | —       |
-| `POST /eventos/:id/campanha`     | `PedidoCampanha`                                | `RespostaEventoComConsequencia`                                  | 1 ou 2  |
-| `POST /eventos/:id/discurso`     | `PedidoDiscurso`                                | `RespostaEventoComConsequencia`                                  | 0       |
-| `GET /energia`                   | —                                               | `EstadoEnergia`                                                  | —       |
-| `POST /energia/recarga`          | `PedidoRecarga` (`gemas`, `anuncio` ou `debug`) | `RespostaRecarga` (gemas com a barra cheia: 409 `energia_cheia`) | —       |
-| `GET /resumo-do-dia`             | —                                               | `ResumoDia`                                                      | —       |
+| Método e rota                     | Corpo                                           | Resposta                                                                                                                                                                                                              | Energia |
+| --------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `POST /auth/anonimo`              | `PedidoAuth`                                    | `RespostaAuth`                                                                                                                                                                                                        | —       |
+| `GET /conta`                      | —                                               | `Conta`                                                                                                                                                                                                               | —       |
+| `PATCH /conta/aparencia`          | `Aparencia`                                     | `Conta`                                                                                                                                                                                                               | —       |
+| `POST /conta/plus`                | `{ ativo: boolean }`                            | `Conta` (placebo, sem cobrança)                                                                                                                                                                                       | —       |
+| `POST /mundos`                    | `PedidoCriarMundo`                              | `Mundo` em `criando`; o job `criar_mundo` avisa pelo WS                                                                                                                                                               | —       |
+| `GET /mundos/atual`               | —                                               | `Mundo`                                                                                                                                                                                                               | —       |
+| `DELETE /mundos/atual`            | —                                               | 204 (recomeçar: apaga o mundo; energia e gemas ficam na conta)                                                                                                                                                        | —       |
+| `GET /mundos/:id/feed?cursor=`    | —                                               | `RespostaFeed`                                                                                                                                                                                                        | —       |
+| `POST /posts/previa`              | `PedidoPost`                                    | `RespostaPrevia`                                                                                                                                                                                                      | 0       |
+| `POST /posts`                     | `PedidoPost`                                    | 201 `RespostaAcaoComPost`                                                                                                                                                                                             | 1       |
+| `GET /posts/:id`                  | —                                               | `Post`                                                                                                                                                                                                                | —       |
+| `POST /posts/:id/curtir`          | —                                               | `Post` (alterna)                                                                                                                                                                                                      | 0       |
+| `GET /posts/:id/respostas`        | —                                               | `RespostaThread`                                                                                                                                                                                                      | —       |
+| `POST /posts/:id/respostas`       | `PedidoTexto`                                   | 201 `RespostaAcaoComPost`                                                                                                                                                                                             | 1       |
+| `GET /historias/:id`              | —                                               | `Post` (marca como vista)                                                                                                                                                                                             | —       |
+| `POST /historias/:id/voto`        | `PedidoVoto`                                    | `Post`                                                                                                                                                                                                                | 0       |
+| `POST /historias/:id/resposta`    | `PedidoTexto`                                   | 201 `RespostaMensagem` (vira DM)                                                                                                                                                                                      | 1       |
+| `GET /conversas`                  | —                                               | `Conversa[]` (as silenciadas vêm com `silenciada`)                                                                                                                                                                    | —       |
+| `POST /personagens/:id/conversa`  | —                                               | `Conversa` (abre ou devolve a existente)                                                                                                                                                                              | —       |
+| `GET /conversas/:id/mensagens`    | —                                               | `Mensagem[]` (zera não lidas)                                                                                                                                                                                         | —       |
+| `POST /conversas/:id/mensagens`   | `PedidoTexto`                                   | 201 `RespostaMensagem`                                                                                                                                                                                                | 1       |
+| `GET /personagens/:id`            | —                                               | `Personagem`                                                                                                                                                                                                          | —       |
+| `POST /personagens/:id/silenciar` | `PedidoSilenciar` (`{ silenciado }`)            | `Personagem` (silenciado sai do feed e das mensagens; o jogador: 400)                                                                                                                                                 | —       |
+| `GET /relacoes`                   | —                                               | `RespostaRelacoes`                                                                                                                                                                                                    | —       |
+| `GET /alertas`                    | —                                               | `Alerta[]`                                                                                                                                                                                                            | —       |
+| `POST /alertas/lidos`             | —                                               | 204                                                                                                                                                                                                                   | —       |
+| `GET /registro`                   | —                                               | `ItemRegistro[]`                                                                                                                                                                                                      | —       |
+| `POST /acoes/:id/desfazer`        | —                                               | `Consequencia`                                                                                                                                                                                                        | 2       |
+| `GET /jornada`                    | —                                               | `Jornada`                                                                                                                                                                                                             | —       |
+| `POST /marcos/:id/resgatar`       | —                                               | `Conta`                                                                                                                                                                                                               | —       |
+| `GET /jornada` (virada de ato)    | —                                               | `Jornada` com `proximoAto: { ato }` (opcional) enquanto a IA escreve o ato seguinte, depois do 5º marco resgatado; o resgate do 5º marco enfileira o job `novo_ato` e o evento `mundo` avisa quando o ato novo começa | —       |
+| `GET /eventos/:id`                | —                                               | `EventoAgendado`                                                                                                                                                                                                      | —       |
+| `POST /eventos/:id/campanha`      | `PedidoCampanha`                                | `RespostaEventoComConsequencia`                                                                                                                                                                                       | 1 ou 2  |
+| `POST /eventos/:id/discurso`      | `PedidoDiscurso`                                | `RespostaEventoComConsequencia`                                                                                                                                                                                       | 0       |
+| `GET /energia`                    | —                                               | `EstadoEnergia`                                                                                                                                                                                                       | —       |
+| `POST /energia/recarga`           | `PedidoRecarga` (`gemas`, `anuncio` ou `debug`) | `RespostaRecarga` (gemas com a barra cheia: 409 `energia_cheia`)                                                                                                                                                      | —       |
+| `GET /resumo-do-dia`              | —                                               | `ResumoDia`                                                                                                                                                                                                           | —       |
 
 Rotas de desenvolvimento (só com `AMBIENTE=dev`):
 
@@ -83,13 +85,14 @@ A recarga `debug` também fica disponível fora do modo dev durante o MVP, pedid
 
 `WS /v1/tempo-real?token=<jwt>` entrega `EventoTempoReal` do canal Redis `mundo:<id>` do mundo do usuário:
 
-| tipo        | Quando                                                               |
-| ----------- | -------------------------------------------------------------------- |
-| `post`      | Post, resposta ou história que chegou na hora marcada (`entregarEm`) |
-| `digitando` | Um personagem começou a escrever (DM ou resposta)                    |
-| `mensagem`  | Mensagem direta entregue                                             |
-| `alerta`    | Alerta novo                                                          |
-| `energia`   | Energia mudou (gasto, recarga, marco)                                |
-| `cartao`    | Cartão de consequência escrito pela IA para uma ação                 |
-| `mundo`     | Mudança de estado do mundo (`criando` para `pronto` ou `erro`)       |
-| `evento`    | Evento agendado mudou (campanha, ao vivo, vencedor)                  |
+| tipo        | Quando                                                                     |
+| ----------- | -------------------------------------------------------------------------- |
+| `post`      | Post, resposta ou história que chegou na hora marcada (`entregarEm`)       |
+| `digitando` | Um personagem começou a escrever (DM ou resposta)                          |
+| `mensagem`  | Mensagem direta entregue                                                   |
+| `alerta`    | Alerta novo                                                                |
+| `energia`   | Energia mudou (gasto, recarga, marco)                                      |
+| `cartao`    | Cartão de consequência escrito pela IA para uma ação                       |
+| `mundo`     | Mudança de estado do mundo (`criando` para `pronto` ou `erro`)             |
+| `mundo`     | Ato novo começou (`mundo.ato` e `objetivoAto` mudam): o app relê a jornada |
+| `evento`    | Evento agendado mudou (campanha, ao vivo, vencedor)                        |

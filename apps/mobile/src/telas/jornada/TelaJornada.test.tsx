@@ -1,11 +1,12 @@
 import type { Marco } from '@holofote/shared';
-import { fireEvent, screen } from '@testing-library/react-native';
+import { act, fireEvent, screen } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { ErroDaApi } from '../../api/cliente';
 import { simularApi } from '../../testes/api';
 import { conta, energia, mundo, uuid } from '../../testes/dados';
 import { renderizarTela } from '../../testes/renderizarTela';
-import { jornada, marcosDoAto } from './dadosDeTeste';
+import { aplicarNoCache } from '../../api/tempoReal';
+import { jornada, marco, marcosDoAto } from './dadosDeTeste';
 import { progressoDoMarco, textoRequisito } from './jornada';
 import { TelaJornada } from './TelaJornada';
 
@@ -132,6 +133,66 @@ describe('06 · Jornada', () => {
     expect(await screen.findByText('Ato concluído')).toBeTruthy();
     expect(screen.getByText('5 de 5 marcos')).toBeTruthy();
     expect(screen.getByText('Nenhum evento agendado por enquanto.')).toBeTruthy();
+  });
+
+  describe('virada de ato', () => {
+    const todosResgatados = (): Marco[] =>
+      marcosDoAto().map((m) => ({
+        ...m,
+        estado: 'concluido',
+        liberadoEm: '2026-10-16T20:00:00Z',
+        resgatado: true,
+      }));
+
+    it('com o ato resgatado e o próximo chegando, mostra que o próximo ato está sendo escrito', async () => {
+      simular({
+        'GET /jornada': jornada({
+          marcos: todosResgatados(),
+          progressoAto: 1,
+          proximoAto: { ato: 2 },
+        }),
+      });
+      await abrir();
+      expect(await screen.findByText('O próximo ato está sendo escrito')).toBeTruthy();
+      expect(screen.getByText(/O Ato 2 chega em instantes/)).toBeTruthy();
+      expect(screen.queryByText('Ato concluído')).toBeNull();
+      expect(screen.queryByText('Próximo marco')).toBeNull();
+      // O ato que acabou continua visível enquanto o novo não chega.
+      expect(screen.getByRole('header', { name: 'Ato 1' })).toBeTruthy();
+    });
+
+    it('quando o evento mundo chega, a jornada se atualiza e mostra o ato novo', async () => {
+      let nova = false;
+      const atoDois = jornada({
+        ato: 2,
+        objetivo: 'Provar que a fama veio para ficar',
+        progressoAto: 0,
+        marcos: [
+          marco({ ordem: 1, titulo: 'Fama posta à prova', estado: 'atual' }),
+          marco({ ordem: 2, titulo: 'Novos rivais', estado: 'futuro' }),
+          marco({ ordem: 3, titulo: 'Assunto do momento', estado: 'futuro' }),
+          marco({ ordem: 4, titulo: 'Aliados de peso', estado: 'futuro' }),
+          marco({ ordem: 5, titulo: 'Lenda em vida', estado: 'futuro' }),
+        ],
+      });
+      simular({
+        'GET /jornada': () =>
+          nova
+            ? atoDois
+            : jornada({ marcos: todosResgatados(), progressoAto: 1, proximoAto: { ato: 2 } }),
+      });
+      const { cliente } = await renderizarTela(<TelaJornada />);
+      expect(await screen.findByText('O próximo ato está sendo escrito')).toBeTruthy();
+
+      nova = true;
+      await act(async () => {
+        aplicarNoCache(cliente, { tipo: 'mundo', mundo: mundo({ ato: 2, estado: 'pronto' }) });
+      });
+      expect(await screen.findByRole('header', { name: 'Ato 2' })).toBeTruthy();
+      expect(screen.getByText('Provar que a fama veio para ficar')).toBeTruthy();
+      expect(screen.queryByText('O próximo ato está sendo escrito')).toBeNull();
+      expect(screen.getByText('Fama posta à prova')).toBeTruthy();
+    });
   });
 
   it('erro ao carregar mostra o cartão com tentar de novo', async () => {

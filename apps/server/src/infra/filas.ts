@@ -45,11 +45,14 @@ export async function enfileirarIa(ctx: ComFilas, fila: FilaDeAcao, acaoId: stri
   }
 }
 
-/** Enfileira um job da fila `lote` (criar_mundo, ficha) com o mesmo tratamento de falha. */
+/** Job `novo_ato`: id determinístico por mundo e ato novo, para a rota e o varredor não duplicarem. */
+export const jobIdDoNovoAto = (mundoId: string, ato: number) => `novo_ato-${mundoId}-${ato}`;
+
+/** Enfileira um job da fila `lote` (criar_mundo, ficha, novo_ato) com o mesmo tratamento de falha. */
 export async function enfileirarLote(
   ctx: ComFilas,
-  nome: 'criar_mundo' | 'ficha',
-  dados: Record<string, string>,
+  nome: 'criar_mundo' | 'ficha' | 'novo_ato',
+  dados: Record<string, string | number>,
   jobId: string,
 ) {
   try {

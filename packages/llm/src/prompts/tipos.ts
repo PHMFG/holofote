@@ -171,6 +171,19 @@ export interface EntradaFicha {
   existentes: { nome: string; handle: string }[];
 }
 
+export interface EntradaNovoAto {
+  /** Número do ato que começa agora (2 ou mais). */
+  ato: number;
+  /** Objetivo do ato que acabou. */
+  objetivoAnterior: string;
+  /** Títulos dos marcos cumpridos no ato que acabou. */
+  marcosCumpridos: string[];
+  /** Estado do mundo em poucas linhas (reescrito no lote diário). */
+  resumoEstado?: string | null;
+  /** O jogador e os números dele agora, que o motor calculou. */
+  jogador: JogadorPrompt;
+}
+
 export interface EntradasJobs {
   diretor: EntradaDiretor;
   dm: EntradaDm;
@@ -180,4 +193,5 @@ export interface EntradasJobs {
   lote_diario: EntradaLoteDiario;
   memoria: EntradaMemoria;
   ficha: EntradaFicha;
+  novo_ato: EntradaNovoAto;
 }

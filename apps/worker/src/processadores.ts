@@ -24,6 +24,7 @@ import { dm, type PedidoDm } from './jobs/dm';
 import { processarEntrega } from './jobs/entrega';
 import { ficha, type PedidoFicha } from './jobs/ficha';
 import { agendarLotes, loteDiario, type PedidoLoteDiario } from './jobs/lote-diario';
+import { novoAto, type PedidoNovoAto } from './jobs/novo-ato';
 
 /** Quantas vezes um job espera o limite do provedor antes de cair na política normal. */
 export const MAX_ADIAMENTOS = 12;
@@ -190,6 +191,19 @@ export function processadores(ctx: ContextoWorker): Record<NomeFila, Processador
                   ...erroParaLog(e),
                 },
                 'ficha desistiu: o marco fica sem personagem novo',
+              );
+            },
+          });
+        }
+        case 'novo_ato': {
+          const pedido = job.data as PedidoNovoAto;
+          return comPolitica(ctx, job, token, () => novoAto(ctx, pedido), {
+            // O varredor da API tenta de novo depois (o jogador fica com "o próximo ato está
+            // sendo escrito" até a IA responder); texto pronto nunca entra no lugar.
+            aoDesistir: async (e) => {
+              ctx.log.error(
+                { job: 'novo_ato', mundoId: pedido.mundoId, ato: pedido.ato, ...erroParaLog(e) },
+                'novo_ato desistiu: a API enfileira de novo mais tarde',
               );
             },
           });

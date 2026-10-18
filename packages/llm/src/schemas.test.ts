@@ -9,6 +9,7 @@ import {
   SaidaFeed,
   SaidaFeedInicial,
   SaidaFicha,
+  SaidaNovoAto,
   SaidaLoteDiario,
   SCHEMAS,
   schemaParaValidar,
@@ -288,6 +289,26 @@ describe('SaidaDm, SaidaFeed e SaidaFicha', () => {
   });
 });
 
+describe('SaidaNovoAto', () => {
+  const marcos = Array.from({ length: 5 }, (_, i) => ({
+    titulo: `Marco ${i + 1}`,
+    descricao: 'Descrição do marco do ato novo.',
+  }));
+
+  it('aceita o objetivo e exatamente 5 marcos, nos limites do criar_mundo', () => {
+    const saida = SaidaNovoAto.parse({ objetivoAto: 'Virar lenda do pop', marcos });
+    expect(saida.marcos).toHaveLength(5);
+    expect(SaidaNovoAto.safeParse({ objetivoAto: 'x', marcos: marcos.slice(0, 4) }).success).toBe(
+      false,
+    );
+    expect(SaidaNovoAto.safeParse({ objetivoAto: 'a'.repeat(121), marcos }).success).toBe(false);
+    const comTituloLongo = [{ titulo: 'a'.repeat(61), descricao: 'ok' }, ...marcos.slice(1)];
+    expect(SaidaNovoAto.safeParse({ objetivoAto: 'x', marcos: comTituloLongo }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('validarIds', () => {
   it('aceita só ids enviados', () => {
     expect(validarIds(diretorValido, ['vic'])).toEqual([]);
@@ -309,5 +330,20 @@ describe('validarIds', () => {
     const problemas = validarIds(feed, ids);
     expect(problemas).toEqual([expect.stringMatching(/posts\.1\.autorId/)]);
     expect(validarIds(feed, { ...ids, posts: [] })).toHaveLength(2);
+  });
+});
+
+describe('nome dos personagens', () => {
+  it('recusa o handle dentro do nome', () => {
+    const ficha = {
+      nome: 'Bruno Beta (@brunobeta)',
+      handle: '@brunobeta',
+      ficha: 'investidor anjo que fala em métricas',
+      tipoVinculo: 'interesse',
+      tomAvatar: 'claro',
+      verificado: false,
+    };
+    expect(SaidaFicha.safeParse(ficha).success).toBe(false);
+    expect(SaidaFicha.safeParse({ ...ficha, nome: 'Bruno Beta' }).success).toBe(true);
   });
 });

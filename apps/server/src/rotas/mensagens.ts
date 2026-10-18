@@ -66,6 +66,7 @@ export async function conversaDto(
       : null,
     naoLidas: c.naoLidas,
     puxouConversa: c.puxouConversa,
+    silenciada: p.silenciado,
   };
 }
 

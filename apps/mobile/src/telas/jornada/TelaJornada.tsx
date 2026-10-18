@@ -1,9 +1,10 @@
 import type { Jornada, Marco } from '@holofote/shared';
 import { router } from 'expo-router';
 import { Book, Calendar, ChevronRight, Gift, Newspaper, Zap } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { CUSTO_DESFAZER } from '../../acoes/custos';
 import { useConta, useEnergia, useJornada, useMundo } from '../../api/consultas';
+import { useTema } from '../../tema/ProvedorTema';
 import { BarraProgresso } from '../../ui/BarraProgresso';
 import { BotaoMetal } from '../../ui/BotaoMetal';
 import { BotaoSuave } from '../../ui/BotaoSuave';
@@ -136,6 +137,8 @@ function Conteudo({ jornada }: { jornada: Jornada }) {
 
       {atual ? (
         <CartaoMarco marco={atual} />
+      ) : jornada.proximoAto ? (
+        <CartaoProximoAto ato={jornada.proximoAto.ato} />
       ) : (
         total > 0 && (
           <Cartao style={estilos.cartao}>
@@ -218,6 +221,22 @@ function CartaoMarco({ marco }: { marco: Marco }) {
   );
 }
 
+/** Ato terminado e resgatado: a IA escreve o próximo; o evento `mundo` traz a jornada nova. */
+function CartaoProximoAto({ ato }: { ato: number }) {
+  const { cores } = useTema();
+  return (
+    <Cartao style={estilos.cartaoAto} accessibilityLiveRegion="polite">
+      <ActivityIndicator color={cores.textoSuave} accessibilityLabel="Carregando" />
+      <Texto estilo="secao" style={estilos.centralizado}>
+        O próximo ato está sendo escrito
+      </Texto>
+      <Texto estilo="legenda" cor="textoSuave" style={estilos.centralizado}>
+        {`O Ato ${ato} chega em instantes. Você receberá um aviso quando ele começar.`}
+      </Texto>
+    </Cartao>
+  );
+}
+
 function CartaoEvento({
   evento,
   diaDoMundo,
@@ -287,6 +306,8 @@ const estilos = StyleSheet.create({
   barraTopo: { width: 96 },
   encolhe: { flex: 1 },
   cartao: { gap: 8 },
+  cartaoAto: { alignItems: 'center', gap: 8 },
+  centralizado: { textAlign: 'center' },
   acao: { paddingTop: 4 },
   progressoAto: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4 },
   secao: { gap: 10, paddingTop: 4 },

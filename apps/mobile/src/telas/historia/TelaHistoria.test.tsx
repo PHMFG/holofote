@@ -66,6 +66,7 @@ const conversa: Conversa = {
   ultima: null,
   naoLidas: 0,
   puxouConversa: false,
+  silenciada: false,
 };
 
 const rotaHistoria = `/historias/${id}`;

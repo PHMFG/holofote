@@ -48,6 +48,7 @@ import { dm } from './jobs/dm';
 import { processarEntrega } from './jobs/entrega';
 import { ficha } from './jobs/ficha';
 import { agendarLotes, loteDiario } from './jobs/lote-diario';
+import { novoAto } from './jobs/novo-ato';
 import { MENSAGEM_LIMITE_MUNDO, processadores, type JobDaFila } from './processadores';
 
 const URL_BANCO =
@@ -893,6 +894,207 @@ describe('ficha e entrega repetidas', () => {
     const mundos = adicionados.map((x) => (x.dados as { mundoId: string }).mundoId);
     expect(mundos).toContain(f.mundoId);
     expect(mundos).not.toContain(abandonado.mundoId);
+  });
+});
+
+describe('novo_ato: a virada de ato', () => {
+  let f: FixturePopBrasil;
+  beforeEach(async () => {
+    f = await criarFixturePopBrasil(conexao.db, { agora: AGORA });
+  });
+
+  async function resgatarOAto() {
+    await conexao.db
+      .update(marco)
+      .set({ liberadoEm: AGORA, resgatadoEm: AGORA })
+      .where(eq(marco.mundoId, f.mundoId));
+  }
+
+  const chamadasDoNovoAto = () =>
+    conexao.db
+      .select()
+      .from(chamadaLlm)
+      .where(and(eq(chamadaLlm.mundoId, f.mundoId), eq(chamadaLlm.job, 'novo_ato')));
+
+  const marcosDoAto = (ato: number) =>
+    conexao.db
+      .select()
+      .from(marco)
+      .where(and(eq(marco.mundoId, f.mundoId), eq(marco.ato, ato)))
+      .orderBy(marco.ordem);
+
+  it('grava o objetivo e os 5 marcos do ato 2 a partir dos números atuais, com alerta e evento', async () => {
+    const { ctx, eventos, adicionados } = montarCtx();
+    await resgatarOAto();
+    await conexao.db
+      .update(personagem)
+      .set({ seguidores: 60_000, fama: 70, carisma: 55 })
+      .where(eq(personagem.id, f.jogadorId));
+    const [antes] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+
+    const [depois] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+    expect(depois!.ato).toBe(2);
+    expect(depois!.objetivoAto).toBeTruthy();
+    expect(depois!.objetivoAto).not.toBe(antes!.objetivoAto);
+    expect(depois!.biblia).toBe(antes!.biblia);
+
+    const novos = await marcosDoAto(2);
+    expect(novos.map((m) => m.ordem)).toEqual([1, 2, 3, 4, 5]);
+    expect(novos.every((m) => m.liberadoEm === null && m.resgatadoEm === null)).toBe(true);
+    expect(novos[0]!.recompensa).toMatchObject({ gemas: 25, energiaCheia: true });
+    // Os requisitos partem de 60 mil seguidores, fama 70 e carisma 55, e crescem com a ordem.
+    const alvos = novos.map((m) => m.requisitos.find((r) => r.chave === 'seguidores')!.alvo);
+    expect(alvos[0]).toBeGreaterThan(60_000 * 2);
+    expect([...alvos].sort((a, b) => a - b)).toEqual(alvos);
+    for (const m of novos) {
+      for (const r of m.requisitos) {
+        if (r.chave === 'fama') expect(r.alvo).toBeGreaterThan(70);
+        if (r.chave === 'carisma') expect(r.alvo).toBeGreaterThan(55);
+      }
+    }
+    // O ato 1 continua como estava.
+    expect(await marcosDoAto(1)).toHaveLength(5);
+
+    const avisos = await conexao.db.select().from(alerta).where(eq(alerta.mundoId, f.mundoId));
+    expect(avisos.filter((a) => a.destino === '/jornada')).toHaveLength(1);
+    expect(avisos.find((a) => a.destino === '/jornada')).toMatchObject({
+      tipo: 'marco',
+      texto: 'Ato 2 começou',
+    });
+    expect(adicionados.some((a) => a.fila === 'entrega' && a.nome === 'entrega')).toBe(true);
+    expect(eventos.find((e) => e.tipo === 'mundo')).toMatchObject({
+      mundo: { ato: 2, estado: 'pronto' },
+    });
+
+    expect(await chamadasDoNovoAto()).toHaveLength(1);
+  });
+
+  it('é idempotente: repetir o job não chama a IA nem grava de novo', async () => {
+    const { ctx } = montarCtx();
+    await resgatarOAto();
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    expect(await marcosDoAto(2)).toHaveLength(5);
+    expect(await chamadasDoNovoAto()).toHaveLength(1);
+    const avisos = await conexao.db.select().from(alerta).where(eq(alerta.mundoId, f.mundoId));
+    expect(avisos.filter((a) => a.destino === '/jornada')).toHaveLength(1);
+  });
+
+  it('com marcos do ato novo já gravados, não gera de novo', async () => {
+    const { ctx } = montarCtx();
+    await resgatarOAto();
+    await conexao.db.insert(marco).values({
+      mundoId: f.mundoId,
+      ato: 2,
+      ordem: 1,
+      titulo: 'Já existia',
+      descricao: 'gravado antes',
+      requisitos: [{ chave: 'seguidores', rotulo: 'Seguidores', alvo: 999_999 }],
+      recompensa: { gemas: 25, energiaCheia: true, personagemNovo: true, acaoNova: 'Enquete' },
+    });
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    const [m] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+    expect(m!.ato).toBe(1);
+    expect(await marcosDoAto(2)).toHaveLength(1);
+    expect(await chamadasDoNovoAto()).toHaveLength(0);
+  });
+
+  it('não vira o ato com marco sem resgatar, com pedido fora de ordem ou com mundo apagado', async () => {
+    const { ctx } = montarCtx();
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    await resgatarOAto();
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 3 });
+    await novoAto(ctx, { mundoId: crypto.randomUUID(), ato: 2 });
+    const [m] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+    expect(m!.ato).toBe(1);
+    expect(await marcosDoAto(2)).toHaveLength(0);
+    expect(await marcosDoAto(3)).toHaveLength(0);
+    expect(await chamadasDoNovoAto()).toHaveLength(0);
+    // Um marco ainda sem resgate também barra a virada.
+    await conexao.db
+      .update(marco)
+      .set({ resgatadoEm: null })
+      .where(and(eq(marco.mundoId, f.mundoId), eq(marco.ordem, 5)));
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    expect(await marcosDoAto(2)).toHaveLength(0);
+  });
+
+  it('o prompt leva o ato novo, o objetivo anterior, os marcos cumpridos e a bíblia', async () => {
+    const falso = criarProvedorFalso();
+    const pedidos: PedidoGeracao[] = [];
+    const espiao: Provedor = { nome: 'espiao', gerar: (p) => (pedidos.push(p), falso.gerar(p)) };
+    const { ctx } = montarCtx(espiao);
+    await resgatarOAto();
+    const [m] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+    const titulos = (await marcosDoAto(1)).map((x) => x.titulo);
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    expect(pedidos).toHaveLength(1);
+    const usuarioMsg = pedidos[0]!.mensagens.find((x) => x.papel === 'usuario')!.conteudo;
+    expect(usuarioMsg.startsWith('JOB: novo_ato\n')).toBe(true);
+    expect(usuarioMsg).toContain('ATO NOVO\nato 2');
+    expect(usuarioMsg).toContain(m!.objetivoAto!);
+    for (const t of titulos) expect(usuarioMsg).toContain(t);
+    expect(usuarioMsg).toContain(`[id:${f.jogadorId}]`);
+    expect(pedidos[0]!.sistema).toContain(m!.biblia!);
+  });
+
+  it('a IA falha de vez: o ato não avança e nenhum texto pronto entra', async () => {
+    const provedor = criarProvedorRoteirizado([
+      new ErroProvedor('m', 500, 'fora'),
+      new ErroProvedor('r', 500, 'fora'),
+    ]);
+    const { ctx, eventos } = montarCtx(provedor);
+    await resgatarOAto();
+    const job = jobFalso('novo_ato', { mundoId: f.mundoId, ato: 2 }, { tentativas: 8, feitas: 7 });
+    await expect(processadores(ctx)[FILAS.lote](job)).rejects.toBeInstanceOf(ErroProvedor);
+    const [m] = await conexao.db.select().from(mundo).where(eq(mundo.id, f.mundoId));
+    expect(m!.ato).toBe(1);
+    expect(await marcosDoAto(2)).toHaveLength(0);
+    expect(eventos).toHaveLength(0);
+  });
+
+  it('com o teto diário estourado, o job espera a virada do dia sem gastar tentativa', async () => {
+    const { ctx } = montarCtx();
+    await resgatarOAto();
+    await conexao.db.insert(chamadaLlm).values({
+      job: 'novo_ato',
+      modelo: 'x',
+      custoUsd: 5,
+      latenciaMs: 1,
+      ok: true,
+      criadoEm: AGORA,
+    });
+    try {
+      const job = jobFalso('novo_ato', { mundoId: f.mundoId, ato: 2 });
+      await expect(processadores(ctx)[FILAS.lote](job, 'token')).rejects.toBeInstanceOf(
+        DelayedError,
+      );
+      expect(job.adiadoPara).toBe(Date.UTC(2026, 9, 17));
+      expect(await marcosDoAto(2)).toHaveLength(0);
+    } finally {
+      await conexao.db.delete(chamadaLlm).where(eq(chamadaLlm.modelo, 'x'));
+    }
+  });
+
+  it('se outro job vira o ato durante a chamada da IA, este não grava nada', async () => {
+    const falso = criarProvedorFalso();
+    const provedor: Provedor = {
+      nome: 'corrida',
+      async gerar(pedido) {
+        const r = await falso.gerar(pedido);
+        await conexao.db.update(mundo).set({ ato: 2 }).where(eq(mundo.id, f.mundoId));
+        return r;
+      },
+    };
+    const { ctx, eventos } = montarCtx(provedor);
+    await resgatarOAto();
+    await novoAto(ctx, { mundoId: f.mundoId, ato: 2 });
+    expect(await marcosDoAto(2)).toHaveLength(0);
+    expect(eventos).toHaveLength(0);
+    const avisos = await conexao.db.select().from(alerta).where(eq(alerta.mundoId, f.mundoId));
+    expect(avisos.filter((a) => a.destino === '/jornada')).toHaveLength(0);
   });
 });
 

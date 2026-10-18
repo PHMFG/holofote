@@ -106,6 +106,7 @@ describe('chamarJob', () => {
       lote_diario: ['mimo-v2.6-flash', 5000],
       memoria: ['mimo-v2.6-flash', 1200],
       ficha: ['mimo-v2.6-flash', 700],
+      novo_ato: ['mimo-v2.6-flash', 1500],
     };
     const falso = criarProvedorFalso();
     for (const job of NOMES_JOBS) {

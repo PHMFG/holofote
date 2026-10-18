@@ -37,6 +37,7 @@ const conversa: Conversa = {
   ultima: { texto: 'indireta? eu só falei do meu single.', criadoEm: antes(29), minha: true },
   naoLidas: 1,
   puxouConversa: false,
+  silenciada: false,
 };
 const mensagem = (p: Partial<Mensagem>): Mensagem => ({
   id: uuid(),

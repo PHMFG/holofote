@@ -38,6 +38,7 @@ export const jogador = (p: Partial<Personagem> = {}): Personagem => ({
   seguidores: 7100,
   relacao: null,
   lembra: [],
+  silenciado: false,
   ...p,
 });
 

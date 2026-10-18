@@ -18,7 +18,7 @@ import {
 } from '@holofote/db';
 import type { Contexto } from '../contexto';
 import { erroParaLog } from './banco';
-import { jobIdDaAcao, type FilaDeAcao } from './filas';
+import { jobIdDaAcao, jobIdDoNovoAto, type FilaDeAcao } from './filas';
 
 /** Tempo que a API tem para enfileirar depois do commit antes de o varredor agir. */
 export const ESPERA_VARREDOR_MS = 2 * 60_000;
@@ -26,6 +26,8 @@ export const ESPERA_VARREDOR_MS = 2 * 60_000;
 export const DESISTE_ACAO_MS = 6 * 3600_000;
 /** Intervalo entre varreduras. */
 export const INTERVALO_VARREDOR_MS = 60_000;
+/** Um novo_ato que terminou (falhou ou saiu sem gravar) só é enfileirado de novo depois disso. */
+export const REPETE_NOVO_ATO_MS = 10 * 60_000;
 const LIMITE = 100;
 
 const FILA_DO_TIPO: Partial<Record<string, FilaDeAcao>> = {
@@ -143,6 +145,37 @@ export async function varrerPendentes(ctx: Contexto): Promise<ResultadoVarredura
     const jobId = `ficha-${m.id}`;
     if ((await jobVivo(ctx, 'lote', jobId)).existe) continue;
     await ctx.filas.lote.add('ficha', { mundoId: m.mundoId, marcoId: m.id }, { jobId });
+    resultado.reenfileirados++;
+  }
+
+  // Ato terminado (os cinco marcos resgatados) e o ato seguinte ainda não existe: o ato só avança
+  // junto dos marcos novos, então o mundo continuar no mesmo ato significa que o novo_ato não
+  // rodou. Como o jogador fica esperando, volta a tentar mesmo depois de o job ter falhado de vez,
+  // mas com intervalo para não gastar IA a cada minuto.
+  const viradas = await ctx.db
+    .select({
+      mundoId: mundo.id,
+      ato: mundo.ato,
+      deslocamentoMin: mundo.deslocamentoMin,
+      ultimoResgate: sql`max(${marco.resgatadoEm})`.mapWith(marco.resgatadoEm),
+    })
+    .from(mundo)
+    .innerJoin(marco, and(eq(marco.mundoId, mundo.id), eq(marco.ato, mundo.ato)))
+    .where(and(eq(mundo.estado, 'pronto'), eq(mundo.ativo, true)))
+    .groupBy(mundo.id)
+    .having(sql`count(*) filter (where ${marco.resgatadoEm} is null) = 0`)
+    .limit(LIMITE);
+  for (const v of viradas) {
+    const idade = real + v.deslocamentoMin * 60_000 - (v.ultimoResgate as Date).getTime();
+    if (idade < ESPERA_VARREDOR_MS) continue;
+    const jobId = jobIdDoNovoAto(v.mundoId, v.ato + 1);
+    const job = await ctx.filas.lote.getJob(jobId);
+    if (job) {
+      if (ESTADOS_VIVOS.has(await job.getState())) continue;
+      if (real - (job.finishedOn ?? 0) < REPETE_NOVO_ATO_MS) continue;
+      await job.remove();
+    }
+    await ctx.filas.lote.add('novo_ato', { mundoId: v.mundoId, ato: v.ato + 1 }, { jobId });
     resultado.reenfileirados++;
   }
 

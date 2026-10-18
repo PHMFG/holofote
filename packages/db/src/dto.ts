@@ -107,6 +107,7 @@ export async function personagemDto(
     seguidores: p.seguidores,
     relacao: rel ? { afinidade: rel.afinidade, rotulo: rel.rotulo } : null,
     lembra: lembranca ? lembranca.fatos.split('\n').filter(Boolean) : [],
+    silenciado: p.silenciado,
   };
 }
 

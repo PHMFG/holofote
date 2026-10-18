@@ -107,4 +107,17 @@ export const EXEMPLOS: EntradasJobs = {
       handle: p.handle,
     })),
   },
+  novo_ato: {
+    ato: 2,
+    objetivoAnterior: 'Dominar o pop nacional',
+    marcosCumpridos: [
+      'Primeira repercussão',
+      'Primeiro show lotado',
+      'Virar assunto do dia',
+      'Ganhar o respeito de quem duvidou',
+      'Fechar o ato no topo',
+    ],
+    resumoEstado: RESUMO_ESTADO,
+    jogador: LUA,
+  },
 };

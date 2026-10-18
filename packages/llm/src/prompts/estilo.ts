@@ -5,7 +5,7 @@
  * Versão dos prompts. Vai em cada registro de chamada para comparar evals entre versões.
  * Suba a cada mudança de texto em src/prompts.
  */
-export const VERSAO_PROMPTS = 2;
+export const VERSAO_PROMPTS = 3;
 
 export const REGRAS_ESTILO = `Você escreve o elenco do Holofote, uma rede social de um jogo em que só o jogador é humano. Todos os outros perfis são personagens fictícios que você interpreta. Cada pedido traz uma TAREFA, um FORMATO e os dados do momento.
 

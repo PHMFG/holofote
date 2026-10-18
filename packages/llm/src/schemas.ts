@@ -35,7 +35,10 @@ export const Handle = z
       ),
   );
 
-const Nome = texto(40);
+/** Nome de exibição: sem @, parênteses ou barras (o handle vai no campo próprio). */
+const Nome = texto(40).refine((n) => !/[@()/\\]/.test(n), {
+  message: 'o nome não leva @, parênteses nem barra; o handle vai no campo handle',
+});
 
 export const TipoVinculo = z.enum([
   'rival',
@@ -308,6 +311,15 @@ export const SaidaFicha = z.object({
 
 export type SaidaFicha = z.output<typeof SaidaFicha>;
 
+// ---------- novo_ato ----------
+
+export const SaidaNovoAto = z.object({
+  objetivoAto: texto(120),
+  marcos: z.array(MarcoGerado).length(5),
+});
+
+export type SaidaNovoAto = z.output<typeof SaidaNovoAto>;
+
 // ---------- tabela ----------
 
 export const SCHEMAS = {
@@ -319,6 +331,7 @@ export const SCHEMAS = {
   lote_diario: SaidaLoteDiario,
   memoria: SaidaMemoria,
   ficha: SaidaFicha,
+  novo_ato: SaidaNovoAto,
 } satisfies Record<NomeJob, z.ZodType>;
 
 export type SaidasJobs = { [J in NomeJob]: z.output<(typeof SCHEMAS)[J]> };

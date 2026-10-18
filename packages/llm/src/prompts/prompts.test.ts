@@ -11,6 +11,7 @@ import {
   montarPromptDoJob,
   promptDiretor,
   promptDm,
+  promptNovoAto,
 } from './index';
 
 afterEach(() => {
@@ -44,6 +45,24 @@ describe('montarPrefixo', () => {
       montarPrefixo({ biblia: BIBLIA_POP_BRASIL }),
     );
     expect(montarPrefixo({ biblia: null })).toBe(montarPrefixo({ biblia: '' }));
+  });
+});
+
+describe('novo_ato', () => {
+  it('leva o ato novo, o objetivo anterior, os marcos cumpridos, o estado e o jogador', () => {
+    const prompt = promptNovoAto(EXEMPLOS.novo_ato);
+    expect(prompt).toContain('ATO NOVO\nato 2');
+    expect(prompt).toContain('OBJETIVO DO ATO ANTERIOR\n"Dominar o pop nacional"');
+    expect(prompt).toContain('- Primeiro show lotado');
+    expect(prompt).toContain(EXEMPLOS.novo_ato.resumoEstado);
+    expect(prompt).toContain(`[id:${EXEMPLOS.novo_ato.jogador.id}]`);
+    expect(prompt).toContain('seguidores');
+  });
+
+  it('sem estado do mundo diz que não há resumo, e não traz data nem hora', () => {
+    const prompt = promptNovoAto({ ...EXEMPLOS.novo_ato, resumoEstado: null });
+    expect(prompt).toContain('sem resumo ainda');
+    expect(prompt).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });
 

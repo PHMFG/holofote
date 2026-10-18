@@ -1,6 +1,6 @@
 # Prompts do Holofote
 
-Prompts versionados do pacote `packages/llm`. Versão atual: **v2** (`VERSAO_PROMPTS` em `packages/llm/src/prompts/estilo.ts`). Cada registro de `chamada_llm` leva a versão, para comparar evals e custo entre versões.
+Prompts versionados do pacote `packages/llm`. Versão atual: **v3** (`VERSAO_PROMPTS` em `packages/llm/src/prompts/estilo.ts`). Cada registro de `chamada_llm` leva a versão, para comparar evals e custo entre versões.
 
 ## Regras que valem para todo prompt
 
@@ -60,6 +60,7 @@ Depois das regras vem `BÍBLIA DO MUNDO` e a bíblia. No `criar_mundo` ainda nã
 | `lote_diario`  | lote                                      | mimo-v2.6-flash     | 2.500        | madrugada (04h30 UTC)                           |
 | `memoria`      | lote                                      | mimo-v2.6-flash     | 800          | junto do lote, personagens com 8+ eventos novos |
 | `ficha`        | lote                                      | mimo-v2.6-flash     | 300          | personagem novo (recompensa de marco)           |
+| `novo_ato`     | lote                                      | mimo-v2.6-flash     | 1.500        | 5º marco do ato resgatado (virada de ato)       |
 
 A reserva de todos é `glm-5.3-flash`. O job `memoria` não estava na lista de schemas pedida, mas está na tabela de tetos do plano; tem schema e prompt próprios (o `lote_diario` também pode devolver memórias).
 
@@ -212,6 +213,23 @@ FORMATO
 
 Saída (`SaidaFicha`): nome até 40, handle, ficha até 600, `tipoVinculo`, `tomAvatar` (claro ou medio) e `verificado`. Nome e handle não podem repetir os existentes.
 
+### novo_ato
+
+Entrada: `EntradaNovoAto` (número do ato novo, objetivo do ato anterior, títulos dos marcos cumpridos, resumo do estado do mundo e o jogador com os números de agora). A bíblia vai no prefixo, como em todo job do mundo. Seções: ATO NOVO, OBJETIVO DO ATO ANTERIOR, MARCOS CUMPRIDOS, ESTADO DO MUNDO, JOGADOR.
+
+```text
+TAREFA
+O jogador cumpriu os marcos do ato anterior e o mundo vira a página. Escreva o ATO NOVO deste mesmo mundo, de acordo com a bíblia, o ESTADO DO MUNDO e o JOGADOR. A história avança: mais fama, desafios novos e maiores, sem repetir os marcos já cumpridos nem desfazer o que aconteceu.
+- objetivoAto: o objetivo do ato novo para o jogador, até 120 caracteres, mais ambicioso que o do ato anterior.
+- marcos: exatamente 5 marcos do ato novo, do mais fácil ao mais difícil (titulo até 60, descricao até 200). Cada um sobe a aposta em relação ao anterior. Sem números de requisito: o motor define.
+- Use o elenco e o universo da bíblia; pessoas novas entram depois, pelos marcos.
+
+FORMATO
+{"objetivoAto":"...","marcos":[{"titulo":"...","descricao":"..."}]}
+```
+
+Saída (`SaidaNovoAto`): `objetivoAto` até 120 e exatamente 5 marcos (titulo até 60, descricao até 200), os mesmos limites do `criar_mundo`. Os requisitos e as recompensas dos marcos saem do motor (`requisitosDoMarco` com o fator do ato).
+
 ## Validação, reparo e falhas
 
 `chamarJob` (em `src/roteador.ts`) faz, nesta ordem:
@@ -238,7 +256,7 @@ const provedor = criarProvedor(config);
 
 try {
   const { dados } = await chamarJob({
-    job: 'diretor', // ou dm, discurso, criar_mundo, feed_inicial, lote_diario, memoria, ficha
+    job: 'diretor', // ou dm, discurso, criar_mundo, feed_inicial, lote_diario, memoria, ficha, novo_ato
     mundoId,
     biblia: mundo.biblia, // null só no criar_mundo
     entrada, // EntradaDiretor, montada do banco e do motor

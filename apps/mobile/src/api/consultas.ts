@@ -367,6 +367,34 @@ export function useAbrirConversa() {
   });
 }
 
+/**
+ * Silenciar (ou deixar de silenciar) um personagem. Grava o Personagem que a API devolve e relê o
+ * que muda de lugar: o feed (posts e histórias), as conversas (a lista esconde as silenciadas) e
+ * as relações.
+ */
+export function useSilenciar(personagemId: string) {
+  const cliente = useQueryClient();
+  return useMutation({
+    mutationFn: (silenciado: boolean) =>
+      requisitar(`/personagens/${personagemId}/silenciar`, {
+        metodo: 'POST',
+        corpo: { silenciado },
+        schema: Personagem,
+      }),
+    onSuccess: (personagem) => {
+      cliente.setQueryData(chaves.personagem(personagemId), personagem);
+      for (const chave of [
+        chaves.feed,
+        chaves.personagem(personagemId),
+        chaves.relacoes,
+        chaves.conversas,
+      ]) {
+        void cliente.invalidateQueries({ queryKey: chave });
+      }
+    },
+  });
+}
+
 export function useEnviarMensagem(conversaId: string) {
   const cliente = useQueryClient();
   return useMutation({

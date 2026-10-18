@@ -114,7 +114,8 @@ export function aplicarNoCache(cliente: QueryClient, evento: EventoTempoReal) {
       break;
     case 'mundo':
       cliente.setQueryData(chaves.mundo, evento.mundo);
-      if (evento.mundo.estado === 'pronto') invalidar(chaves.feed);
+      // Pronto: o feed inicial chegou. Também é o aviso de ato novo: a jornada passa a ser a nova.
+      if (evento.mundo.estado === 'pronto') invalidar(chaves.feed, chaves.jornada);
       break;
     case 'evento':
       cliente.setQueryData(chaves.evento(evento.evento.id), evento.evento);

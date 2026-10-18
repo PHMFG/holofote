@@ -83,6 +83,8 @@ export const Personagem = PersonagemResumo.extend({
   relacao: Relacao.nullable(),
   /** O que o personagem lembra do jogador (memórias). */
   lembra: z.array(z.string()),
+  /** Silenciado pelo jogador: some do feed e da lista de conversas e o elenco não reage por ele. */
+  silenciado: z.boolean(),
 });
 
 // ---------- Posts e histórias ----------
@@ -186,6 +188,8 @@ export const Conversa = z.object({
   ultima: z.object({ texto: z.string(), criadoEm: instante, minha: z.boolean() }).nullable(),
   naoLidas: z.number().int().min(0),
   puxouConversa: z.boolean(),
+  /** O personagem está silenciado: a conversa fica fora da lista de mensagens, mas abre pelo perfil. */
+  silenciada: z.boolean(),
 });
 
 export const Mensagem = z.object({
@@ -247,6 +251,11 @@ export const Jornada = z.object({
   progressoAto: z.number().min(0).max(1),
   marcos: z.array(Marco),
   proximoEvento: EventoResumo.nullable(),
+  /**
+   * Presente quando o jogador resgatou os cinco marcos do ato e o ato seguinte ainda está sendo
+   * escrito pela IA; some quando o ato novo começa (a jornada passa a mostrar o ato novo).
+   */
+  proximoAto: z.object({ ato: z.number().int().min(2) }).optional(),
 });
 
 export const EventoAgendado = z.object({
@@ -345,6 +354,8 @@ export const RespostaAcaoComPost = z.object({ post: Post, consequencia: Conseque
 
 export const PedidoTexto = z.object({ texto: texto(280) });
 
+export const PedidoSilenciar = z.object({ silenciado: z.boolean() });
+
 export const RespostaThread = z.object({
   post: Post,
   respostas: z.array(Post),
@@ -424,6 +435,7 @@ export type ItemRegistro = z.infer<typeof ItemRegistro>;
 export type EventoTempoReal = z.infer<typeof EventoTempoReal>;
 export type PedidoCriarMundo = z.infer<typeof PedidoCriarMundo>;
 export type PedidoPost = z.infer<typeof PedidoPost>;
+export type PedidoSilenciar = z.infer<typeof PedidoSilenciar>;
 export type RespostaPrevia = z.infer<typeof RespostaPrevia>;
 export type RespostaFeed = z.infer<typeof RespostaFeed>;
 export type RespostaThread = z.infer<typeof RespostaThread>;

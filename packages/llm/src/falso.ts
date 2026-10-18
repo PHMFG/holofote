@@ -385,6 +385,20 @@ function respostaFicha(s: Secoes, semente: number) {
   };
 }
 
+function respostaNovoAto(s: Secoes) {
+  const ato = Number.parseInt(/(\d+)/.exec(primeiraLinha(s, 'ATO NOVO'))?.[1] ?? '2', 10) || 2;
+  return {
+    objetivoAto: `Ato ${ato}: manter o holofote e provar que a fama veio para ficar`,
+    marcos: [
+      { titulo: 'Fama posta à prova', descricao: 'Mostrar que a fama aguenta o novo ritmo.' },
+      { titulo: 'Novos rivais', descricao: 'Encarar quem chegou depois e quer o seu lugar.' },
+      { titulo: 'Assunto do momento', descricao: 'Dominar as conversas por vários dias seguidos.' },
+      { titulo: 'Aliados de peso', descricao: 'Reunir quem pode sustentar a sua carreira.' },
+      { titulo: 'Lenda em vida', descricao: 'Fechar o ato como referência do mundo inteiro.' },
+    ],
+  };
+}
+
 export function respostaFalsa(job: NomeJob, prompt: string): unknown {
   const s = lerSecoes(prompt);
   const semente = hash(prompt);
@@ -404,6 +418,8 @@ export function respostaFalsa(job: NomeJob, prompt: string): unknown {
       return respostaMemoria(s);
     case 'ficha':
       return respostaFicha(s, semente);
+    case 'novo_ato':
+      return respostaNovoAto(s);
   }
 }
 

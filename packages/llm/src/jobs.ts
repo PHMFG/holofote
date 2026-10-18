@@ -13,6 +13,7 @@ export const NOMES_JOBS = [
   'lote_diario',
   'memoria',
   'ficha',
+  'novo_ato',
 ] as const;
 
 export type NomeJob = (typeof NOMES_JOBS)[number];
@@ -35,6 +36,7 @@ export const JOBS: Record<NomeJob, DefinicaoJob> = {
   lote_diario: { papel: 'lote', maxTokens: 5000 },
   memoria: { papel: 'lote', maxTokens: 1200 },
   ficha: { papel: 'lote', maxTokens: 700 },
+  novo_ato: { papel: 'lote', maxTokens: 1500 },
 };
 
 export function ehNomeJob(valor: string): valor is NomeJob {

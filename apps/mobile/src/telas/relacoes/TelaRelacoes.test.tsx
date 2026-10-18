@@ -61,6 +61,7 @@ function simular(rotas: Record<string, unknown> = {}) {
     ultima: null,
     naoLidas: 0,
     puxouConversa: false,
+    silenciada: false,
   };
   simularApi({
     'GET /relacoes': relacoes,

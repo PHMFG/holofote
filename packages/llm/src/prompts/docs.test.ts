@@ -20,6 +20,7 @@ describe('docs/PROMPTS.md', () => {
     'TAREFA_LOTE_DIARIO',
     'TAREFA_MEMORIA',
     'TAREFA_FICHA',
+    'TAREFA_NOVO_ATO',
   ] as const)('traz %s igual ao código', (nome) => {
     expect(doc).toContain(prompts[nome]);
   });

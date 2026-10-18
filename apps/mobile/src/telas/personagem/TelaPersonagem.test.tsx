@@ -1,6 +1,6 @@
 import { montarTema } from '@holofote/tokens';
 import type { Conversa, ItemRegistro, Personagem } from '@holofote/shared';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
 import { ErroDaApi } from '../../api/cliente';
@@ -53,6 +53,7 @@ function simular(p: Personagem, rotas: Record<string, unknown> = {}) {
     ultima: null,
     naoLidas: 0,
     puxouConversa: false,
+    silenciada: false,
   };
   simularApi({
     [`GET /personagens/${p.id}`]: p,
@@ -142,12 +143,77 @@ describe('08 · Perfil de personagem', () => {
     expect(await screen.findByRole('button', { name: 'Mandar mensagem' })).toBeEnabled();
   });
 
+  it('"Silenciar" pede confirmação, grava e passa a mostrar que está silenciado', async () => {
+    const alerta = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const p = vic();
+    let atual = p;
+    simular(p, {
+      [`GET /personagens/${p.id}`]: () => atual,
+      [`POST /personagens/${p.id}/silenciar`]: (corpo: unknown) => {
+        atual = { ...p, silenciado: (corpo as { silenciado: boolean }).silenciado };
+        return atual;
+      },
+    });
+    await renderizarTela(<TelaPersonagem id={p.id} />);
+
+    expect(screen.queryByText(/Silenciado ·/)).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Silenciar' }));
+    // Nada é gravado antes de confirmar.
+    expect(chamadas.some((c) => c.rota.endsWith('/silenciar'))).toBe(false);
+    expect(alerta).toHaveBeenCalledWith(
+      'Silenciar Vic?',
+      expect.stringContaining('some do seu feed'),
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Cancelar', style: 'cancel' }),
+        expect.objectContaining({ text: 'Silenciar', style: 'destructive' }),
+      ]),
+    );
+
+    const botoes = alerta.mock.calls[0]![2]!;
+    await act(async () => botoes.find((b) => b.text === 'Silenciar')!.onPress!());
+
+    expect(chamadas).toContainEqual({
+      metodo: 'POST',
+      rota: `/personagens/${p.id}/silenciar`,
+      corpo: { silenciado: true },
+    });
+    expect(await screen.findByText('Silenciado · fora do seu feed e das mensagens')).toBeTruthy();
+    expect(screen.getByLabelText('Vic está silenciado')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Deixar de silenciar' })).toBeTruthy();
+  });
+
+  it('"Deixar de silenciar" age direto, sem confirmação', async () => {
+    const alerta = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const p = vic({ silenciado: true });
+    let atual = p;
+    simular(p, {
+      [`GET /personagens/${p.id}`]: () => atual,
+      [`POST /personagens/${p.id}/silenciar`]: (corpo: unknown) => {
+        atual = { ...p, silenciado: (corpo as { silenciado: boolean }).silenciado };
+        return atual;
+      },
+    });
+    await renderizarTela(<TelaPersonagem id={p.id} />);
+
+    expect(await screen.findByText('Silenciado · fora do seu feed e das mensagens')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Deixar de silenciar' }));
+    expect(await screen.findByRole('button', { name: 'Silenciar' })).toBeTruthy();
+    expect(alerta).not.toHaveBeenCalled();
+    expect(chamadas).toContainEqual({
+      metodo: 'POST',
+      rota: `/personagens/${p.id}/silenciar`,
+      corpo: { silenciado: false },
+    });
+    expect(screen.queryByText(/Silenciado ·/)).toBeNull();
+  });
+
   it('o próprio jogador não tem botão de mensagem nem memórias', async () => {
     const eu = jogador();
     simular(eu);
     await renderizarTela(<TelaPersonagem id={eu.id} />);
     expect(await screen.findByText('@luaprado')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Mandar mensagem' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Silenciar' })).toBeNull();
     expect(screen.queryByText(/lembra de você/)).toBeNull();
   });
 

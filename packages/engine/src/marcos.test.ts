@@ -9,7 +9,9 @@ import {
   alvoDoRequisito,
   arredondarSignificativo,
   avaliarMarco,
+  ACRESCIMO_POR_ATO,
   contarAliados,
+  fatorDoAto,
   progressoDoAto,
   recompensaDoMarco,
   requisitosDoMarco,
@@ -124,6 +126,77 @@ describe('requisitosDoMarco', () => {
   it('contadores ausentes no início valem 0', () => {
     expect(alvoDoRequisito('aliados', 3, INICIO, rngFixo(0))).toBe(1);
     expect(alvoDoRequisito('aliados', 3, { ...INICIO, aliados: 2 }, rngFixo(0))).toBe(3);
+  });
+});
+
+describe('atos seguintes', () => {
+  const ATO_2 = { seguidores: 80_000, fama: 70, carisma: 60, posts: 40, dms: 12, escandalos: 5 };
+
+  it('o fator do ato começa em 1 e cresce a cada ato', () => {
+    expect(fatorDoAto(1)).toBe(1);
+    expect(fatorDoAto(2)).toBe(1 + ACRESCIMO_POR_ATO);
+    expect(fatorDoAto(4)).toBeGreaterThan(fatorDoAto(3));
+    expect(fatorDoAto(0)).toBe(1);
+    expect(fatorDoAto(2.9)).toBe(fatorDoAto(2));
+  });
+
+  it('o Ato 1 não muda: o ato é opcional e vale 1', () => {
+    const r = () => requisitosDoMarco(3, INICIO, criarRng('mesmo'));
+    expect(requisitosDoMarco(3, INICIO, criarRng('mesmo'), 1)).toEqual(r());
+  });
+
+  it('parte dos números atuais e pede mais que o ato anterior com o mesmo sorteio', () => {
+    for (const chave of Object.keys(ESCALA_REQUISITOS) as ChaveRequisito[]) {
+      for (const ordem of [1, 3, 5]) {
+        const ato1 = alvoDoRequisito(chave, ordem, ATO_2, rngFixo(0.5), 1);
+        const ato2 = alvoDoRequisito(chave, ordem, ATO_2, rngFixo(0.5), 2);
+        const ato3 = alvoDoRequisito(chave, ordem, ATO_2, rngFixo(0.5), 3);
+        expect(ato2).toBeGreaterThanOrEqual(ato1);
+        expect(ato3).toBeGreaterThanOrEqual(ato2);
+        if (chave !== 'fama' && chave !== 'carisma') expect(ato3).toBeGreaterThan(ato1);
+      }
+    }
+    expect(alvoDoRequisito('seguidores', 1, ATO_2, rngFixo(0.5), 2)).toBe(
+      arredondarSignificativo(80_000 * 2 * 1.25),
+    );
+    expect(alvoDoRequisito('posts', 1, ATO_2, rngFixo(0.5), 2)).toBe(40 + 13);
+  });
+
+  it('propriedade: todo alvo do ato novo passa dos números atuais do jogador', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 5 }),
+        fc.integer({ min: 2, max: 6 }),
+        arbInicio,
+        fc.string(),
+        (ordem, ato, inicio, semente) => {
+          for (const r of requisitosDoMarco(ordem, inicio, criarRng(semente), ato)) {
+            expect(r.alvo).toBeGreaterThan(inicio[r.chave]);
+          }
+        },
+      ),
+    );
+  });
+
+  it('fama e carisma já no teto não viram requisito', () => {
+    const noTeto = { ...ATO_2, fama: 100, carisma: 100 };
+    for (const ordem of [2, 3, 4, 5]) {
+      const chaves = requisitosDoMarco(ordem, noTeto, criarRng(`teto-${ordem}`), 2).map(
+        (r) => r.chave,
+      );
+      expect(chaves).not.toContain('fama');
+      expect(chaves).not.toContain('carisma');
+      expect(chaves).toHaveLength(3);
+    }
+    // Só o carisma no teto: a fama ainda pode aparecer.
+    const soCarisma = { ...ATO_2, carisma: 100 };
+    const todas = [2, 3, 4, 5].flatMap((ordem) =>
+      Array.from({ length: 30 }, (_, i) =>
+        requisitosDoMarco(ordem, soCarisma, criarRng(`c-${ordem}-${i}`), 2).map((r) => r.chave),
+      ).flat(),
+    );
+    expect(todas).toContain('fama');
+    expect(todas).not.toContain('carisma');
   });
 });
 

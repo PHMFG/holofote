@@ -1,16 +1,17 @@
 import type { Personagem } from '@holofote/shared';
 import { router } from 'expo-router';
-import { ArrowDown, ArrowUp, BadgeCheck, Sparkles } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { ArrowDown, ArrowUp, BadgeCheck, Sparkles, Volume2, VolumeX } from 'lucide-react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { ErroDaApi } from '../../api/cliente';
-import { useAbrirConversa, usePersonagem, useRegistro } from '../../api/consultas';
+import { useAbrirConversa, usePersonagem, useRegistro, useSilenciar } from '../../api/consultas';
 import { formatarNumero, primeiroNome } from '../../formatar';
 import { Avatar } from '../../ui/Avatar';
 import { BarraProgresso } from '../../ui/BarraProgresso';
 import { BotaoMetal } from '../../ui/BotaoMetal';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
+import { Chip } from '../../ui/Chip';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
 import { Rotulo } from '../../ui/Rotulo';
@@ -55,6 +56,7 @@ export function TelaPersonagem({ id }: { id: string }) {
 function Perfil({ personagem: p }: { personagem: Personagem }) {
   const registro = useRegistro();
   const abrirConversa = useAbrirConversa();
+  const silenciar = useSilenciar(p.id);
   const agora = useAgora(60_000);
   const ehJogador = p.papel === 'jogador';
   const hoje = variacaoDeHoje(registro.data, agora)?.get(`relacao:${p.id}`) ?? 0;
@@ -65,6 +67,20 @@ function Perfil({ personagem: p }: { personagem: Personagem }) {
       onSuccess: (conversa) => router.push(`/dm/${conversa.id}`),
       onError: tratarErroDeAcao,
     });
+
+  const alternarSilencio = () => {
+    const silenciarAgora = !p.silenciado;
+    const aplicar = () => silenciar.mutate(silenciarAgora, { onError: tratarErroDeAcao });
+    if (!silenciarAgora) return aplicar();
+    Alert.alert(
+      `Silenciar ${nome}?`,
+      `${nome} some do seu feed e da lista de mensagens, e o elenco para de chamar ${nome} para reagir. Você pode desfazer quando quiser.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Silenciar', style: 'destructive', onPress: aplicar },
+      ],
+    );
+  };
 
   const numeros = [
     { valor: formatarNumero(p.seguidores), rotulo: p.seguidores === 1 ? 'seguidor' : 'seguidores' },
@@ -92,6 +108,18 @@ function Perfil({ personagem: p }: { personagem: Personagem }) {
           {p.verificado && <Icone icone={BadgeCheck} tamanho={18} cor="texto" traco={2} />}
         </View>
         <Texto cor="textoSuave">{comArroba(p.handle)}</Texto>
+        {p.silenciado && (
+          <View
+            style={estilos.silenciado}
+            accessible
+            accessibilityLabel={`${nome} está silenciado`}
+          >
+            <Icone icone={VolumeX} tamanho={14} cor="textoSuave" traco={2} />
+            <Texto estilo="legenda" cor="textoSuave">
+              Silenciado · fora do seu feed e das mensagens
+            </Texto>
+          </View>
+        )}
       </View>
       {p.ficha ? <Texto>{p.ficha}</Texto> : null}
       <View style={estilos.numeros}>
@@ -108,6 +136,14 @@ function Perfil({ personagem: p }: { personagem: Personagem }) {
           rotulo={abrirConversa.isPending ? 'Abrindo conversa…' : 'Mandar mensagem'}
           disabled={abrirConversa.isPending}
           onPress={mandarMensagem}
+        />
+      )}
+
+      {!ehJogador && (
+        <Chip
+          rotulo={p.silenciado ? 'Deixar de silenciar' : 'Silenciar'}
+          icone={p.silenciado ? Volume2 : VolumeX}
+          onPress={silenciar.isPending ? undefined : alternarSilencio}
         />
       )}
 
@@ -181,6 +217,7 @@ function Perfil({ personagem: p }: { personagem: Personagem }) {
 const estilos = StyleSheet.create({
   identidade: { gap: 2 },
   nome: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  silenciado: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 4 },
   numeros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4 },
   numero: { flexDirection: 'row', gap: 4 },
   cartao: { gap: 10 },

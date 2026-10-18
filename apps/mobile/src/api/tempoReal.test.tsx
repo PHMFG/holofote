@@ -131,7 +131,7 @@ describe('aplicarNoCache', () => {
     expect(cliente.getQueryData(chaves.mensagens(conversaId))).toBeUndefined();
   });
 
-  it('mundo grava no cache e só relê o feed quando fica pronto', () => {
+  it('mundo grava no cache e só relê o feed e a jornada quando fica pronto', () => {
     const criando: Mundo = mundo({ estado: 'criando' });
     aplicarNoCache(cliente, { tipo: 'mundo', mundo: criando });
     expect(cliente.getQueryData(chaves.mundo)).toEqual(criando);
@@ -139,7 +139,13 @@ describe('aplicarNoCache', () => {
     const pronto = { ...criando, estado: 'pronto' as const };
     aplicarNoCache(cliente, { tipo: 'mundo', mundo: pronto });
     expect(cliente.getQueryData(chaves.mundo)).toEqual(pronto);
-    expect(chavesRelidas()).toEqual([chaves.feed]);
+    expect(chavesRelidas()).toEqual([chaves.feed, chaves.jornada]);
+  });
+
+  it('mundo com ato novo relê a jornada', () => {
+    aplicarNoCache(cliente, { tipo: 'mundo', mundo: mundo({ ato: 2, estado: 'pronto' }) });
+    expect(cliente.getQueryData(chaves.mundo)).toMatchObject({ ato: 2 });
+    expect(chavesRelidas()).toContainEqual(chaves.jornada);
   });
 
   it('energia grava no cache e relê a conta', () => {

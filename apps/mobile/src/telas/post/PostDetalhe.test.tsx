@@ -106,7 +106,8 @@ describe('03 · Post e consequências', () => {
     simular();
     const { cliente } = await abrir();
     expect(await screen.findByText('Consequência')).toBeTruthy();
-    expect(screen.getByText('+214 seguidores')).toBeTruthy();
+    // Os dígitos rolam (NumeroRolante): o valor é lido pelo rótulo do bloco.
+    expect(screen.getByLabelText('+214 seguidores')).toBeTruthy();
     expect(screen.getByLabelText('+486 curtidas')).toBeTruthy();
     expect(await screen.findByLabelText('Vic · relação −3%')).toBeTruthy();
     expect(screen.getByLabelText('Duda · relação +5%')).toBeTruthy();

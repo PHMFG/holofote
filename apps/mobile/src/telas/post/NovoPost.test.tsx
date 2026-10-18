@@ -100,8 +100,12 @@ describe('12 · Novo post', () => {
     expect(await screen.findByLabelText('Vic · relação: −5 a −2%')).toBeTruthy();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Publicar · 1 energia' }));
-    await waitFor(() =>
-      expect(router.replace).toHaveBeenCalledWith(`/post/${publicado.id}?acao=${cons.eventoId}`),
+    // O aviso de "Publicado" aparece antes de abrir o post.
+    expect(await screen.findByLabelText('Post publicado. Abrindo o post.')).toBeTruthy();
+    await waitFor(
+      () =>
+        expect(router.replace).toHaveBeenCalledWith(`/post/${publicado.id}?acao=${cons.eventoId}`),
+      { timeout: 3000 },
     );
     expect(corpos('/posts')).toEqual([
       { texto: 'single novo sexta', tom: 'provocativo', marcados: [vic.id] },

@@ -4,19 +4,24 @@ import { router } from 'expo-router';
 import { Pen, Search, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useAbrirConversa, useConversas, useMundo, useRelacoes } from '../../api/consultas';
 import { normalizar } from '../../formatar';
 import { horaCurta, useAgora } from '../../tempo';
 import { useTema } from '../../tema/ProvedorTema';
+import { Aparecer } from '../../ui/Aparecer';
 import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Camada } from '../../ui/Camada';
-import { Cartao } from '../../ui/Cartao';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
 import { RotuloSecao } from '../../ui/Rotulo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { useAnimacoes } from '../animacao/animacoes';
+import { CartaoAnimado } from '../animacao/Animados';
+import { Colapsavel } from '../animacao/Colapsavel';
+import { ItemAnimado, useRegistroDeEntradas } from '../animacao/entradas';
 import { LinhaConversa } from './LinhaConversa';
 import { NovaConversa } from './NovaConversa';
 
@@ -25,8 +30,14 @@ const instante = (c: Conversa) => (c.ultima ? new Date(c.ultima.criadoEm).getTim
 const combina = (termo: string, p: PersonagemResumo) =>
   normalizar(p.nome).includes(termo) || normalizar(p.handle).includes(termo);
 
-/** 14 · Mensagens: conversas pela última mensagem e um jeito de puxar conversa com o elenco. */
+/**
+ * 14 · Mensagens: conversas pela última mensagem e um jeito de puxar conversa com o elenco.
+ * As linhas entram em cascata; a fileira de nova conversa abre e fecha animando a altura; a busca
+ * e a chegada de mensagens reordenam a lista com animação de layout.
+ */
 export function TelaMensagens() {
+  const { medidas } = useTema();
+  const animacoes = useAnimacoes();
   const conversas = useConversas();
   const relacoes = useRelacoes();
   const mundo = useMundo();
@@ -46,6 +57,10 @@ export function TelaMensagens() {
   const elenco = (relacoes.data?.nos ?? [])
     .filter((n) => n.personagem.papel === 'elenco' && (!termo || combina(termo, n.personagem)))
     .sort((a, b) => b.relacao.afinidade - a.relacao.afinidade);
+  const entradas = useRegistroDeEntradas(
+    filtradas.map((c) => c.id),
+    { novos: 'topo' },
+  );
   const semConversas = conversas.data !== undefined && ordenadas.length === 0;
   const mostrarElenco = escolhendo || termo.length > 0 || semConversas;
 
@@ -92,8 +107,10 @@ export function TelaMensagens() {
 
   return (
     <Tela comAbas cabecalho={cabecalho} gap={12}>
-      <CampoBusca valor={busca} onMudar={setBusca} />
-      {mostrarElenco && (
+      <Aparecer indice={0}>
+        <CampoBusca valor={busca} onMudar={setBusca} />
+      </Aparecer>
+      <Colapsavel aberto={mostrarElenco} gap={12} sangria={medidas.margemLateral}>
         <NovaConversa
           elenco={elenco}
           onEscolher={comecar}
@@ -102,37 +119,46 @@ export function TelaMensagens() {
           onTentarDeNovo={() => void relacoes.refetch()}
           comBusca={termo.length > 0}
         />
-      )}
+      </Colapsavel>
       {semConversas ? (
-        <Cartao style={estilos.vazio}>
+        <CartaoAnimado
+          entering={animacoes.entrada(1)}
+          layout={animacoes.layout}
+          style={estilos.vazio}
+        >
           <Texto cor="textoSuave" style={estilos.centro}>
             Nenhuma conversa ainda. Escolha alguém do elenco para começar.
           </Texto>
-        </Cartao>
+        </CartaoAnimado>
       ) : (
-        <>
-          <RotuloSecao texto="Conversas" />
-          <Cartao lista style={estilos.lista}>
+        <Animated.View layout={animacoes.layout} style={estilos.conversas}>
+          <Aparecer indice={1}>
+            <RotuloSecao texto="Conversas" />
+          </Aparecer>
+          <CartaoAnimado lista layout={animacoes.layout} style={estilos.lista}>
             {filtradas.length === 0 && (
-              <Texto cor="textoSuave" style={[estilos.centro, estilos.semResultado]}>
-                Nenhuma conversa com esse nome.
-              </Texto>
+              <Animated.View entering={animacoes.fade()} exiting={animacoes.saida}>
+                <Texto cor="textoSuave" style={[estilos.centro, estilos.semResultado]}>
+                  Nenhuma conversa com esse nome.
+                </Texto>
+              </Animated.View>
             )}
             {filtradas.map((conversa, i) => (
-              <LinhaConversa
-                key={conversa.id}
-                conversa={conversa}
-                hora={
-                  conversa.ultima
-                    ? horaCurta(conversa.ultima.criadoEm, agora, mundo.data?.dia)
-                    : undefined
-                }
-                separador={i < filtradas.length - 1}
-                onPress={() => router.push(`/dm/${conversa.id}`)}
-              />
+              <ItemAnimado key={conversa.id} registro={entradas} id={conversa.id} fadePadrao>
+                <LinhaConversa
+                  conversa={conversa}
+                  hora={
+                    conversa.ultima
+                      ? horaCurta(conversa.ultima.criadoEm, agora, mundo.data?.dia)
+                      : undefined
+                  }
+                  separador={i < filtradas.length - 1}
+                  onPress={() => router.push(`/dm/${conversa.id}`)}
+                />
+              </ItemAnimado>
             ))}
-          </Cartao>
-        </>
+          </CartaoAnimado>
+        </Animated.View>
       )}
     </Tela>
   );
@@ -172,6 +198,7 @@ const estilos = StyleSheet.create({
     paddingVertical: 11,
   },
   campo: { flex: 1, padding: 0 },
+  conversas: { gap: 12 },
   lista: { paddingHorizontal: 14, paddingVertical: 2 },
   vazio: { alignItems: 'center' },
   centro: { textAlign: 'center' },

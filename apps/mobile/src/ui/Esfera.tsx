@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { ViewProps } from 'react-native';
 import { Camada } from './Camada';
 import type { CorDeTexto } from './Texto';
+import { Tocavel } from './Tocavel';
 
 export type TomEsfera = 'escuro' | 'claro' | 'medio';
 
@@ -25,14 +26,28 @@ export interface EsferaProps extends ViewProps {
   tom?: TomEsfera;
   tamanho?: number;
   children?: ReactNode;
+  /** Esfera tocável: vira botão, encolhe e perde brilho ao toque (precisa de accessibilityLabel). */
+  onPress?: () => void;
+  /** Só vale com onPress. */
+  desabilitada?: boolean;
 }
 
 /** Esfera cromada por gradiente radial (no escuro os tons se invertem, como no Figma). */
-export function Esfera({ tom = 'escuro', tamanho = 40, style, children, ...props }: EsferaProps) {
+export function Esfera({
+  tom = 'escuro',
+  tamanho = 40,
+  style,
+  children,
+  onPress,
+  desabilitada,
+  ...props
+}: EsferaProps) {
   const { gradiente, sombra } = ESTILOS[tom];
-  return (
+  // Tocável: o rótulo fica só no botão, para o VoiceOver e os testes acharem um elemento.
+  const { accessibilityLabel, ...semRotulo } = props;
+  const esfera = (
     <Camada
-      {...props}
+      {...(onPress ? semRotulo : props)}
       gradiente={gradiente}
       sombra={sombra}
       raio={tamanho / 2}
@@ -43,5 +58,17 @@ export function Esfera({ tom = 'escuro', tamanho = 40, style, children, ...props
     >
       {children}
     </Camada>
+  );
+  if (!onPress) return esfera;
+  return (
+    <Tocavel
+      onPress={onPress}
+      disabled={desabilitada}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !!desabilitada }}
+    >
+      {esfera}
+    </Tocavel>
   );
 }

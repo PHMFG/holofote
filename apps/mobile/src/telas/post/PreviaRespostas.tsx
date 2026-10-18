@@ -1,14 +1,17 @@
 import type { PersonagemResumo, Post } from '@holofote/shared';
 import { router } from 'expo-router';
-import { Fragment } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { primeiroNome } from '../../formatar';
 import { tempoRelativo } from '../../tempo';
 import { useTema } from '../../tema/ProvedorTema';
-import { Cartao } from '../../ui/Cartao';
-import { Comentario, Digitando, SeparadorComentario } from '../../ui/Comentario';
+import { Comentario, SeparadorComentario } from '../../ui/Comentario';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
+import { useAnimacoes } from '../animacao/animacoes';
+import { CartaoAnimado } from '../animacao/Animados';
+import { ItemAnimado, useRegistroDeEntradas } from '../animacao/entradas';
+import { LinhaDigitando } from '../animacao/LinhaDigitando';
 import { filtrarThread, montarArvore } from '../respostas/arvore';
 
 const MAXIMO = 3;
@@ -27,7 +30,9 @@ export interface PreviaRespostasProps {
 
 /**
  * As 3 respostas diretas mais recentes ao post (Comentario, como em 13 · Respostas) e o atalho
- * "Ver todas". Respostas a respostas ficam só na tela de respostas.
+ * "Ver todas". Respostas a respostas ficam só na tela de respostas. A primeira carga entra em
+ * cascata, a resposta que chega depois entra deslizando e quem está digitando aparece com os
+ * pontinhos em onda; o cartão acomoda a altura.
  */
 export function PreviaRespostas({
   postId,
@@ -40,10 +45,15 @@ export function PreviaRespostas({
   onCurtir,
 }: PreviaRespostasProps) {
   const { cores } = useTema();
+  const animacoes = useAnimacoes();
   const abrirTodas = () => router.push(`/post/${postId}/respostas`);
   const primeiras = filtrarThread(montarArvore(postId, respostas ?? []), 'recentes')
     .slice(0, MAXIMO)
     .map((no) => no.resposta);
+  const entradas = useRegistroDeEntradas(
+    primeiras.map((r) => r.id),
+    { novos: 'qualquer', cascataInicial: MAXIMO },
+  );
 
   let corpo;
   if (carregando) {
@@ -52,21 +62,25 @@ export function PreviaRespostas({
     );
   } else if (erro) {
     corpo = (
-      <Texto cor="textoSuave" style={estilos.centro}>
-        Não deu para carregar as respostas.
-      </Texto>
+      <Animated.View entering={animacoes.fade()}>
+        <Texto cor="textoSuave" style={estilos.centro}>
+          Não deu para carregar as respostas.
+        </Texto>
+      </Animated.View>
     );
   } else if (primeiras.length === 0 && digitando.length === 0) {
     corpo = (
-      <Texto cor="textoSuave" style={estilos.centro}>
-        Ainda sem respostas. Quem estiver online reage primeiro.
-      </Texto>
+      <Animated.View entering={animacoes.fade()} exiting={animacoes.saida}>
+        <Texto cor="textoSuave" style={estilos.centro}>
+          Ainda sem respostas. Quem estiver online reage primeiro.
+        </Texto>
+      </Animated.View>
     );
   } else {
     corpo = (
       <>
         {primeiras.map((r, i) => (
-          <Fragment key={r.id}>
+          <ItemAnimado key={r.id} registro={entradas} id={r.id} style={estilos.item} fadePadrao>
             {i > 0 && <SeparadorComentario />}
             <Comentario
               nome={r.autor.nome}
@@ -82,10 +96,10 @@ export function PreviaRespostas({
               onCurtir={() => onCurtir(r)}
               onResponder={abrirTodas}
             />
-          </Fragment>
+          </ItemAnimado>
         ))}
         {digitando.map((p) => (
-          <Digitando key={p.id} nome={primeiroNome(p.nome)} iniciais={p.iniciais} />
+          <LinhaDigitando key={p.id} nome={primeiroNome(p.nome)} iniciais={p.iniciais} />
         ))}
       </>
     );
@@ -103,7 +117,9 @@ export function PreviaRespostas({
           </Texto>
         </Tocavel>
       </View>
-      <Cartao style={estilos.cartao}>{corpo}</Cartao>
+      <CartaoAnimado layout={animacoes.layout} style={estilos.cartao}>
+        {corpo}
+      </CartaoAnimado>
     </View>
   );
 }
@@ -119,4 +135,5 @@ const estilos = StyleSheet.create({
   },
   cartao: { gap: 12, padding: 14 },
   centro: { textAlign: 'center' },
+  item: { gap: 12 },
 });

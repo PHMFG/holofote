@@ -1,14 +1,16 @@
 import type { EventoResumo } from '@holofote/shared';
 import { router } from 'expo-router';
 import { ArrowUpRight, Calendar } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import type { z } from 'zod';
 import { useTema } from '../../tema/ProvedorTema';
+import { Aparecer } from '../../ui/Aparecer';
 import { Camada } from '../../ui/Camada';
 import { Esfera, corSobreEsfera } from '../../ui/Esfera';
 import { Icone } from '../../ui/Icone';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
+import { TrocaSuave } from '../animacao/TrocaSuave';
 import { NOME_PERIODO } from '../../tempo';
 
 type Evento = z.infer<typeof EventoResumo>;
@@ -29,41 +31,46 @@ export function tituloDoEvento(evento: Evento, diaDoMundo: number): string {
   return `${evento.titulo} em ${faltam} dias`;
 }
 
-/** Banner do próximo evento agendado (Figma 16:92): cartão com borda de destaque. */
+/**
+ * Banner do próximo evento agendado (Figma 16:92): cartão com borda de destaque. Entra com fade
+ * e leve subida; o título troca com transição quando o dia do mundo vira.
+ */
 export function BannerEvento({ evento, diaDoMundo }: { evento: Evento; diaDoMundo: number }) {
   const { medidas } = useTema();
   const titulo = tituloDoEvento(evento, diaDoMundo);
   const detalhe = `Dia ${evento.quando.dia}, ${NOME_PERIODO[evento.quando.periodo]} · ${ESTADO[evento.estado]}`;
   return (
-    <Tocavel
-      onPress={() => router.push(`/evento/${evento.id}`)}
-      accessibilityRole="button"
-      accessibilityLabel={`${titulo}. ${detalhe}`}
-    >
-      <Camada
-        cor="superficie"
-        sombra="elevacao"
-        raio={medidas.cartaoRaio}
-        borda={{ cor: 'destaque', largura: 1.5 }}
-        style={estilos.cartao}
+    <Aparecer indice={1}>
+      <Tocavel
+        onPress={() => router.push(`/evento/${evento.id}`)}
+        accessibilityRole="button"
+        accessibilityLabel={`${titulo}. ${detalhe}`}
       >
-        <Esfera tom="escuro" tamanho={44}>
-          <Icone icone={Calendar} tamanho={18} cor={corSobreEsfera('escuro')} traco={2} />
-        </Esfera>
-        <View style={estilos.textos}>
-          <Texto estilo="corpoForte" numberOfLines={1}>
-            {titulo}
-          </Texto>
-          <Texto estilo="legenda" cor="textoSuave" numberOfLines={1}>
-            {detalhe}
-          </Texto>
-        </View>
-        {/* Seta do botão suave do Figma, decorativa: o cartão inteiro é o toque. */}
-        <Camada cor="superficie2" raio={medidas.botaoSuave / 2} style={estilos.seta}>
-          <Icone icone={ArrowUpRight} tamanho={18} cor="texto" />
+        <Camada
+          cor="superficie"
+          sombra="elevacao"
+          raio={medidas.cartaoRaio}
+          borda={{ cor: 'destaque', largura: 1.5 }}
+          style={estilos.cartao}
+        >
+          <Esfera tom="escuro" tamanho={44}>
+            <Icone icone={Calendar} tamanho={18} cor={corSobreEsfera('escuro')} traco={2} />
+          </Esfera>
+          <TrocaSuave chave={`${titulo}|${detalhe}`} style={estilos.textos}>
+            <Texto estilo="corpoForte" numberOfLines={1}>
+              {titulo}
+            </Texto>
+            <Texto estilo="legenda" cor="textoSuave" numberOfLines={1}>
+              {detalhe}
+            </Texto>
+          </TrocaSuave>
+          {/* Seta do botão suave do Figma, decorativa: o cartão inteiro é o toque. */}
+          <Camada cor="superficie2" raio={medidas.botaoSuave / 2} style={estilos.seta}>
+            <Icone icone={ArrowUpRight} tamanho={18} cor="texto" />
+          </Camada>
         </Camada>
-      </Camada>
-    </Tocavel>
+      </Tocavel>
+    </Aparecer>
   );
 }
 

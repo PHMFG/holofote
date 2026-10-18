@@ -11,6 +11,7 @@ import { Segmentado, type OpcaoSegmentado } from '../../ui/Segmentado';
 import { Tela } from '../../ui/Tela';
 import { CUSTO_DESFAZER } from '../../acoes/custos';
 import { agruparPorDia } from './dias';
+import { ItemFluido } from '../perfil/efeitos';
 import { ItemDoRegistro } from './ItemDoRegistro';
 import { useAgora } from '../../tempo';
 
@@ -90,20 +91,26 @@ export function TelaRegistro() {
   } else if (grupos.length === 0) {
     conteudo = <EstadoTela tipo="vazio" frase={VAZIO[filtro]} />;
   } else {
+    // Índice corrido pela lista inteira: a cascata percorre os dias de cima para baixo.
+    let posicao = 0;
     conteudo = grupos.map((grupo) => (
       <View key={grupo.chave} style={estilos.grupo}>
-        <RotuloSecao texto={grupo.rotulo} />
+        <ItemFluido indice={posicao}>
+          <RotuloSecao texto={grupo.rotulo} />
+        </ItemFluido>
         <View>
           {grupo.itens.map((item, i) => (
-            <ItemDoRegistro
-              key={item.eventoId}
-              item={item}
-              nomePorId={nomePorId}
-              maisRecente={item.eventoId === maisRecente}
-              ultimo={i === grupo.itens.length - 1}
-              desfazendo={desfazer.isPending && desfazer.variables === item.eventoId}
-              onDesfazer={confirmarDesfazer}
-            />
+            <ItemFluido key={item.eventoId} indice={++posicao}>
+              <ItemDoRegistro
+                item={item}
+                nomePorId={nomePorId}
+                maisRecente={item.eventoId === maisRecente}
+                ultimo={i === grupo.itens.length - 1}
+                indice={posicao}
+                desfazendo={desfazer.isPending && desfazer.variables === item.eventoId}
+                onDesfazer={confirmarDesfazer}
+              />
+            </ItemFluido>
           ))}
         </View>
       </View>

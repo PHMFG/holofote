@@ -113,14 +113,18 @@ describe('19 · Sem energia', () => {
     expect(screen.queryByText('Sua energia acabou')).toBeNull();
   });
 
-  it('usar 10 gemas chama a recarga por gemas, vibra e fecha', async () => {
+  it('usar 10 gemas chama a recarga por gemas, vibra, enche a barra e só então fecha', async () => {
     simular();
     await renderizarTela(<TelaSemEnergia />);
 
     await fireEvent.press(await screen.findByRole('button', { name: GEMAS }));
-    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    await waitFor(() => expect(Haptics.notificationAsync).toHaveBeenCalledWith('success'));
     expect(recargas()).toEqual([{ via: 'gemas' }]);
-    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
+    // A folha fica aberta enquanto a energia enche e nada mais recarrega.
+    expect(router.back).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^Usar 10 gemas/ })).toBeDisabled();
+    expect(screen.getByRole('progressbar', { name: 'Energia' })).toBeTruthy();
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1), { timeout: 3000 });
     await recarregada();
   });
 
@@ -155,10 +159,10 @@ describe('19 · Sem energia', () => {
       await waitFor(() => expect(recargas()).toEqual([{ via: 'anuncio' }]), {
         timeout: DURACAO_ANUNCIO_MS + 1500,
       });
-      await waitFor(() => expect(router.back).toHaveBeenCalled());
+      await waitFor(() => expect(router.back).toHaveBeenCalled(), { timeout: 3000 });
       await recarregada();
     },
-    DURACAO_ANUNCIO_MS + 4000,
+    DURACAO_ANUNCIO_MS + 7000,
   );
 
   it(
@@ -244,7 +248,7 @@ describe('19 · Sem energia', () => {
     await renderizarTela(<TelaSemEnergia />);
     await fireEvent.press(await screen.findByRole('button', { name: /^Recarregar \(debug\)/ }));
     await waitFor(() => expect(recargas()).toEqual([{ via: 'debug' }]));
-    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    await waitFor(() => expect(router.back).toHaveBeenCalled(), { timeout: 3000 });
     await recarregada();
   });
 

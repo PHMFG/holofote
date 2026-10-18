@@ -5,6 +5,8 @@ import { Appearance } from 'react-native';
 
 jest.spyOn(Appearance, 'setColorScheme').mockImplementation(() => {});
 
+// Reanimated nos testes: src/testes/reanimado.ts (moduleNameMapper do jest.config.js).
+
 // O react-native-mmkv importa o Nitro nativo já no carregamento; usa o mock em memória da própria lib.
 jest.mock('react-native-mmkv', () => {
   const { createMockMMKV } = jest.requireActual('react-native-mmkv/lib/createMMKV/createMockMMKV');

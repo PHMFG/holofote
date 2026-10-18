@@ -1,10 +1,12 @@
 import type { Conversa } from '@holofote/shared';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useTema } from '../../tema/ProvedorTema';
 import { Avatar } from '../../ui/Avatar';
 import { Rotulo } from '../../ui/Rotulo';
 import { Texto } from '../../ui/Texto';
 import { Verificado } from '../../ui/Verificado';
+import { useAnimacoes } from '../animacao/animacoes';
 
 export interface LinhaConversaProps {
   conversa: Conversa;
@@ -30,6 +32,7 @@ export const ehNova = (conversa: Conversa) => conversa.puxouConversa && conversa
  */
 export function LinhaConversa({ conversa, hora, separador = true, onPress }: LinhaConversaProps) {
   const { cores } = useTema();
+  const animacoes = useAnimacoes();
   const { personagem, relacao } = conversa;
   const naoLida = conversa.naoLidas > 0;
   const nova = ehNova(conversa);
@@ -83,7 +86,13 @@ export function LinhaConversa({ conversa, hora, separador = true, onPress }: Lin
           >
             {previa}
           </Texto>
-          {naoLida && <View style={[estilos.ponto, { backgroundColor: cores.destaque }]} />}
+          {/* Lida a conversa, o ponto encolhe e some em vez de sumir de uma vez. */}
+          {naoLida && (
+            <Animated.View
+              exiting={animacoes.popSaida}
+              style={[estilos.ponto, { backgroundColor: cores.destaque }]}
+            />
+          )}
         </View>
         <Texto estilo="legenda" cor="textoSuave" numberOfLines={1}>
           {detalhe}

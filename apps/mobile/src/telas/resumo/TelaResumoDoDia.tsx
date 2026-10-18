@@ -18,12 +18,23 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react-native';
+import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { ErroDaApi } from '../../api/cliente';
 import { useMundo, useResumoDia } from '../../api/consultas';
 import { formatarNumero } from '../../formatar';
 import { voltarOuInicio } from '../../navegacao';
 import { NOME_PERIODO } from '../../tempo';
+import { useTema } from '../../tema/ProvedorTema';
+import { Aparecer } from '../../ui/Aparecer';
 import { BotaoMetal } from '../../ui/BotaoMetal';
 import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -35,6 +46,9 @@ import { LinhaDeLista } from '../../ui/LinhaDeLista';
 import { RotuloSecao } from '../../ui/Rotulo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { CURVA, DURACAO, MOLA, atrasoDaCascata, useMovimento } from '../../ui/movimento';
+import { Pop } from '../perfil/efeitos';
+import { NumeroContando } from '../perfil/NumeroContando';
 
 const ICONE_DO_PERIODO: Record<Periodo, LucideIcon> = { manha: Sunrise, tarde: Sun, noite: Moon };
 
@@ -93,59 +107,84 @@ export function TelaResumoDoDia() {
   return (
     <Tela gap={12} rodape={<BotaoMetal rotulo="Começar o dia" onPress={voltarOuInicio} />}>
       {/* Como no Figma (57:1582), o fechar fica na linha do título, sem uma linha só para ele. */}
-      <View style={estilos.cabecaDoDia}>
-        <View style={estilos.titulo}>
-          <View style={estilos.dia}>
-            <Icone icone={ICONE_DO_PERIODO[periodo ?? 'manha']} tamanho={14} cor="destaqueTinta" />
-            <Texto estilo="mini" cor="destaqueTinta">
-              {dia}
+      <Aparecer indice={0}>
+        <View style={estilos.cabecaDoDia}>
+          <View style={estilos.titulo}>
+            <View style={estilos.dia}>
+              <Pop de={0.3} atraso={100} mola={MOLA.viva}>
+                <Icone
+                  icone={ICONE_DO_PERIODO[periodo ?? 'manha']}
+                  tamanho={14}
+                  cor="destaqueTinta"
+                />
+              </Pop>
+              <Texto estilo="mini" cor="destaqueTinta">
+                {dia}
+              </Texto>
+            </View>
+            <Texto estilo="titulo" accessibilityRole="header">
+              {r.dia === 1 ? 'Seu primeiro dia' : 'Enquanto você dormia'}
             </Texto>
           </View>
-          <Texto estilo="titulo" accessibilityRole="header">
-            {r.dia === 1 ? 'Seu primeiro dia' : 'Enquanto você dormia'}
-          </Texto>
+          <BotaoSuave icone={X} rotulo="Fechar" onPress={voltarOuInicio} />
         </View>
-        <BotaoSuave icone={X} rotulo="Fechar" onPress={voltarOuInicio} />
-      </View>
+      </Aparecer>
 
-      <Cartao style={estilos.manchete}>
-        <View style={estilos.cabecaManchete}>
-          <Esfera tom="escuro" tamanho={32}>
-            <Icone icone={Newspaper} tamanho={14} cor={corSobreEsfera('escuro')} />
-          </Esfera>
-          <Texto estilo="corpoForte">Manchete do dia</Texto>
-        </View>
-        <Texto estilo="secao">{r.manchete}</Texto>
-      </Cartao>
+      {/* A manchete é o centro do resumo: entra depois do cabeçalho, com mola, e leva um contorno
+          de destaque que acende e apaga uma vez. */}
+      <Pop de={0.92} deslocamento={14} atraso={160} mola={MOLA.suave}>
+        <ContornoPassageiro>
+          <Cartao style={estilos.manchete}>
+            <View style={estilos.cabecaManchete}>
+              <Pop de={0.3} atraso={300} mola={MOLA.viva}>
+                <Esfera tom="escuro" tamanho={32}>
+                  <Icone icone={Newspaper} tamanho={14} cor={corSobreEsfera('escuro')} />
+                </Esfera>
+              </Pop>
+              <Texto estilo="corpoForte">Manchete do dia</Texto>
+            </View>
+            <Aparecer modo="fade" atraso={380}>
+              <Texto estilo="secao">{r.manchete}</Texto>
+            </Aparecer>
+          </Cartao>
+        </ContornoPassageiro>
+      </Pop>
 
       {r.numeros.length > 0 && <Numeros numeros={r.numeros} />}
 
       {r.pendencias.length > 0 && (
         <>
-          <RotuloSecao
-            texto="Pedem sua resposta"
-            meta={String(r.pendencias.length)}
-            corMeta="textoSuave"
-          />
+          <Aparecer indice={r.numeros.length + 1}>
+            <RotuloSecao
+              texto="Pedem sua resposta"
+              meta={String(r.pendencias.length)}
+              corMeta="textoSuave"
+            />
+          </Aparecer>
           <Cartao lista style={estilos.pendencias}>
             {r.pendencias.map((p, i) => (
-              <LinhaDeLista
+              <Aparecer
                 key={`${p.destino.rota}-${i}`}
-                titulo={p.texto}
-                linhasDoTitulo={2}
-                separador={i < r.pendencias.length - 1}
-                inicio={
-                  <Esfera tom="escuro" tamanho={40}>
-                    <Icone
-                      icone={iconeDaPendencia(p.destino.rota)}
-                      tamanho={18}
-                      cor={corSobreEsfera('escuro')}
-                    />
-                  </Esfera>
-                }
-                fim={<Icone icone={ChevronRight} tamanho={16} cor="textoSuave" />}
-                onPress={() => router.push(p.destino.rota)}
-              />
+                indice={i}
+                atraso={atrasoDaCascata(r.numeros.length + 1) + 80}
+              >
+                <LinhaDeLista
+                  titulo={p.texto}
+                  linhasDoTitulo={2}
+                  separador={i < r.pendencias.length - 1}
+                  inicio={
+                    <Esfera tom="escuro" tamanho={40}>
+                      <Icone
+                        icone={iconeDaPendencia(p.destino.rota)}
+                        tamanho={18}
+                        cor={corSobreEsfera('escuro')}
+                      />
+                    </Esfera>
+                  }
+                  fim={<Icone icone={ChevronRight} tamanho={16} cor="textoSuave" />}
+                  onPress={() => router.push(p.destino.rota)}
+                />
+              </Aparecer>
             ))}
           </Cartao>
         </>
@@ -174,12 +213,14 @@ export function agruparNumeros<T>(numeros: readonly T[]): T[][] {
 /** Cartões de número: rótulo, valor e a variação com seta. */
 function Numeros({ numeros }: { numeros: ResumoDia['numeros'] }) {
   const linhas = agruparNumeros(numeros);
+  // Índice corrido dos cartões: a cascata anda da esquerda para a direita, linha a linha.
+  let posicao = 0;
   return (
     <>
       {linhas.map((linha, i) => (
         <View key={i} style={estilos.numeros}>
           {linha.map((n) => (
-            <Numero key={n.rotulo} {...n} />
+            <Numero key={n.rotulo} {...n} indice={posicao++} />
           ))}
         </View>
       ))}
@@ -187,7 +228,44 @@ function Numeros({ numeros }: { numeros: ResumoDia['numeros'] }) {
   );
 }
 
-function Numero({ rotulo, valor, variacao }: ResumoDia['numeros'][number]) {
+/** Contorno de destaque que acende e apaga uma vez em volta do cartão, chamando o olhar. */
+function ContornoPassageiro({ children }: { children: ReactNode }) {
+  const { cores, medidas } = useTema();
+  const { reduzido } = useMovimento();
+  const brilho = useSharedValue(0);
+  useEffect(() => {
+    if (reduzido) return;
+    brilho.value = withDelay(
+      450,
+      withSequence(
+        withTiming(1, { duration: DURACAO.media, easing: CURVA.saida }),
+        withTiming(0, { duration: DURACAO.lenta + 300, easing: CURVA.entradaSaida }),
+      ),
+    );
+    return () => cancelAnimation(brilho);
+  }, [reduzido, brilho]);
+  const estilo = useAnimatedStyle(() => ({ opacity: brilho.value }));
+  return (
+    <View>
+      {children}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          estilos.contorno,
+          { borderColor: cores.destaque, borderRadius: medidas.cartaoRaio },
+          estilo,
+        ]}
+      />
+    </View>
+  );
+}
+
+function Numero({
+  rotulo,
+  valor,
+  variacao,
+  indice,
+}: ResumoDia['numeros'][number] & { indice: number }) {
   const sobe = variacao !== null && variacao > 0;
   const desce = variacao !== null && variacao < 0;
   const cor = sobe ? 'destaqueTinta' : 'textoSuave';
@@ -203,28 +281,47 @@ function Numero({ rotulo, valor, variacao }: ResumoDia['numeros'][number]) {
         : desce
           ? `, caiu ${formatarNumero(Math.abs(variacao))}`
           : ', sem mudança';
+  const atraso = atrasoDaCascata(indice + 2);
   return (
-    <Cartao style={estilos.numero} accessible accessibilityLabel={`${rotulo}: ${valor}${falada}`}>
-      <Texto estilo="mini" cor="textoSuave" numberOfLines={1}>
-        {rotulo}
-      </Texto>
-      <Texto estilo="numero" numberOfLines={1} adjustsFontSizeToFit>
-        {valor}
-      </Texto>
-      {variacaoTexto && (
-        <View style={estilos.variacao}>
-          <Icone
-            icone={sobe ? ArrowUp : desce ? ArrowDown : Minus}
-            tamanho={12}
-            cor={cor}
-            traco={2}
-          />
-          <Texto estilo="legenda" cor={cor}>
-            {variacaoTexto}
-          </Texto>
-        </View>
-      )}
-    </Cartao>
+    <Aparecer indice={indice + 2} style={estilos.cartaoNumero}>
+      <Cartao style={estilos.numero} accessible accessibilityLabel={`${rotulo}: ${valor}${falada}`}>
+        <Texto estilo="mini" cor="textoSuave" numberOfLines={1}>
+          {rotulo}
+        </Texto>
+        <NumeroContando
+          estilo="numero"
+          texto={valor}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          animarAte={7}
+          atraso={atraso + 150}
+        />
+        {variacaoTexto && (
+          <Pop
+            de={0.3}
+            deslocamento={sobe ? 6 : desce ? -6 : 0}
+            atraso={atraso + 450}
+            mola={MOLA.viva}
+            style={estilos.alinhaInicio}
+          >
+            <View style={estilos.variacao}>
+              <Icone
+                icone={sobe ? ArrowUp : desce ? ArrowDown : Minus}
+                tamanho={12}
+                cor={cor}
+                traco={2}
+              />
+              <NumeroContando
+                estilo="legenda"
+                cor={cor}
+                texto={variacaoTexto}
+                atraso={atraso + 450}
+              />
+            </View>
+          </Pop>
+        )}
+      </Cartao>
+    </Aparecer>
   );
 }
 
@@ -235,7 +332,10 @@ const estilos = StyleSheet.create({
   manchete: { gap: 10 },
   cabecaManchete: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   numeros: { flexDirection: 'row', gap: 10 },
-  numero: { flex: 1, gap: 2, padding: 14 },
+  cartaoNumero: { flex: 1 },
+  numero: { gap: 2, padding: 14 },
+  alinhaInicio: { alignSelf: 'flex-start' },
+  contorno: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2 },
   variacao: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   pendencias: { paddingHorizontal: 14, paddingVertical: 2 },
 });

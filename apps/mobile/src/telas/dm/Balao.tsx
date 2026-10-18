@@ -1,7 +1,10 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Camada } from '../../ui/Camada';
-import { PontosDigitando } from '../../ui/PontosDigitando';
 import { Texto } from '../../ui/Texto';
+import { useAnimacoes } from '../animacao/animacoes';
+import { PontosEmOnda } from '../animacao/PontosEmOnda';
 
 /** Raio dos cantos do balão; o canto do lado de quem fala fica com 6 (Figma 18:266 e 18:269). */
 const RAIO = 20;
@@ -52,25 +55,37 @@ export function Balao({ texto, minha, autor }: BalaoProps) {
   );
 }
 
-/** Três pontos num balão recebido enquanto o personagem escreve (o servidor avisa pelo WS). */
-export function BalaoDigitando({ nome }: { nome: string }) {
+/**
+ * Três pontos em onda num balão recebido enquanto o personagem escreve (o servidor avisa pelo
+ * WS). O balão cresce a partir do canto de baixo à esquerda e some com fade quando a mensagem
+ * chega. `style` é do bloco de fora (o espaço extra ao trocar de lado).
+ */
+export function BalaoDigitando({ nome, style }: { nome: string; style?: StyleProp<ViewStyle> }) {
+  const animacoes = useAnimacoes();
   return (
-    <View style={estilos.linha} accessible accessibilityLabel={`${nome} está digitando`}>
+    <Animated.View
+      entering={animacoes.balao(false)}
+      exiting={animacoes.saida}
+      style={[estilos.linha, estilos.origemEsquerda, style]}
+      accessible
+      accessibilityLabel={`${nome} está digitando`}
+    >
       <Camada
         cor="superficie"
         sombra="elevacao"
         raio={RAIO_PONTA}
         style={[estilos.digitando, cantosRecebida]}
       >
-        <PontosDigitando tamanho={7} espaco={5} />
+        <PontosEmOnda tamanho={7} espaco={5} />
       </Camada>
-    </View>
+    </Animated.View>
   );
 }
 
 const estilos = StyleSheet.create({
   linha: { flexDirection: 'row' },
   linhaMinha: { justifyContent: 'flex-end' },
+  origemEsquerda: { transformOrigin: 'left bottom' },
   balao: { maxWidth: '78%', paddingHorizontal: 15, paddingVertical: 11 },
   digitando: {
     flexDirection: 'row',

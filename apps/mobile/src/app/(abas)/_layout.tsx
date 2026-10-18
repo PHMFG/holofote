@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
 import { Bell, Home, MessageSquare, Target, User } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { Easing, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErroDaApi } from '../../api/cliente';
 import { useAlertas, useMundo } from '../../api/consultas';
@@ -9,6 +9,7 @@ import { useTema } from '../../tema/ProvedorTema';
 import { useAbrirResumoDoDia } from '../../telas/resumo/useAbrirResumoDoDia';
 import { BarraDeAbas } from '../../ui/BarraDeAbas';
 import { EstadoTela } from '../../ui/EstadoTela';
+import { DURACAO, useMovimento } from '../../ui/movimento';
 
 const ABAS = {
   index: { rotulo: 'Início', icone: Home },
@@ -52,6 +53,7 @@ function BarraFlutuante({ state, navigateToTab }: BottomTabBarProps) {
 export default function LayoutAbas() {
   const mundo = useMundo();
   const { cores } = useTema();
+  const { reduzido } = useMovimento();
   // Primeira visita de cada dia do mundo: o resumo da manhã abre sozinho.
   useAbrirResumoDoDia();
 
@@ -76,7 +78,20 @@ export default function LayoutAbas() {
   }
 
   return (
-    <Tabs tabBar={(props) => <BarraFlutuante {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs
+      tabBar={(props) => <BarraFlutuante {...props} />}
+      screenOptions={{
+        headerShown: false,
+        // Troca de aba: fade curto entre as cenas, ambas com o fundo do tema (sem piscar).
+        // Com movimento reduzido, a troca é imediata.
+        animation: reduzido ? 'none' : 'fade',
+        transitionSpec: {
+          animation: 'timing',
+          config: { duration: DURACAO.rapida, easing: Easing.out(Easing.cubic) },
+        },
+        sceneStyle: { backgroundColor: cores.fundo },
+      }}
+    >
       {(Object.keys(ABAS) as ChaveAba[]).map((nome) => (
         <Tabs.Screen key={nome} name={nome} options={{ title: ABAS[nome].rotulo }} />
       ))}

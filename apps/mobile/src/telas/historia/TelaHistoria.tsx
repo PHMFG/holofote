@@ -2,15 +2,20 @@ import type { PersonagemResumo } from '@holofote/shared';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ChevronLeft, ChevronRight, Ellipsis, MessageSquare, X } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
-  Animated,
   KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { ErroDaApi } from '../../api/cliente';
@@ -20,6 +25,7 @@ import { Avatar } from '../../ui/Avatar';
 import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Camada } from '../../ui/Camada';
 import { Chip } from '../../ui/Chip';
+import { CURVA, DURACAO, useMovimento } from '../../ui/movimento';
 import { Compositor } from '../../ui/Compositor';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
@@ -29,16 +35,31 @@ import { voltarOuInicio } from '../../navegacao';
 import { haQuanto, useAgora } from '../../tempo';
 import { primeiroNome } from '../../formatar';
 import { useReduzirMovimento } from '../aparencia/ajustes';
-
+import { useAnimacoes } from '../animacao/animacoes';
+import { CamadaAnimada } from '../animacao/Animados';
 import { EnqueteHistoria } from './EnqueteHistoria';
 import { dividirTexto } from './formatar';
 import { useArrastarParaFechar } from './useArrastarParaFechar';
 import { useHistoria, useSequenciaDeHistorias } from './useHistoria';
 
 /**
+ * Última história aberta e a hora em que a tela fechou. Trocar de história (`router.replace`)
+ * remonta a tela: a diferença de posição, lida logo ao montar, diz de que lado o palco entra.
+ */
+let ultimaVista: { posicao: number; quando: number } | null = null;
+const JANELA_DA_TROCA_MS = 1500;
+
+/** -1 veio de uma história anterior, 1 de uma seguinte, 0 abriu do feed. */
+function direcaoDaTroca(posicao: number): -1 | 0 | 1 {
+  if (!ultimaVista || Date.now() - ultimaVista.quando > JANELA_DA_TROCA_MS) return 0;
+  return Math.sign(posicao - ultimaVista.posicao) as -1 | 0 | 1;
+}
+
+/**
  * 15 · História (Figma 54:1460 claro, 58:2027 escuro), em modal de tela cheia: segmentos de
  * progresso, autor, o texto em adesivo, a enquete e a resposta que vira mensagem direta.
- * Fecha pelo X, arrastando para baixo ou com o gesto de escape do VoiceOver.
+ * Fecha pelo X, arrastando para baixo (o conteúdo acompanha o dedo) ou com o gesto de escape do
+ * VoiceOver. Ao trocar de história, o palco desliza do lado de onde o jogador vem.
  */
 export function TelaHistoria({ id }: { id: string }) {
   const insets = useSafeAreaInsets();
@@ -49,8 +70,18 @@ export function TelaHistoria({ id }: { id: string }) {
   const responder = useResponderHistoria(id);
   const agora = useAgora();
   const reduzir = useReduzirMovimento();
-  const { deslocamento, arrastar } = useArrastarParaFechar(voltarOuInicio, reduzir);
+  const animacoes = useAnimacoes();
+  const { estilo: estiloDoArrasto, arrastar } = useArrastarParaFechar(voltarOuInicio, reduzir);
   const [enviada, setEnviada] = useState<{ conversaId: string } | null>(null);
+  const [direcao] = useState(() => direcaoDaTroca(sequencia.posicao));
+
+  const posicaoNaFileira = sequencia.posicao;
+  useEffect(
+    () => () => {
+      ultimaVista = { posicao: posicaoNaFileira, quando: Date.now() };
+    },
+    [posicaoNaFileira],
+  );
 
   const dados = historia.data;
   const expirada =
@@ -62,10 +93,7 @@ export function TelaHistoria({ id }: { id: string }) {
       <Animated.View
         {...arrastar}
         onAccessibilityEscape={voltarOuInicio}
-        style={[
-          estilos.flex,
-          { paddingTop: insets.top, transform: [{ translateY: deslocamento }] },
-        ]}
+        style={[estilos.flex, { paddingTop: insets.top }, estiloDoArrasto]}
       >
         {conteudo}
       </Animated.View>
@@ -103,6 +131,11 @@ export function TelaHistoria({ id }: { id: string }) {
   const nome = primeiroNome(autor.nome);
   const posicao = sequencia.total > 1 ? ` · ${sequencia.posicao + 1} de ${sequencia.total}` : '';
   const texto = dividirTexto(dados.texto);
+  // Do feed, o palco sobe; entre histórias, entra do lado de onde o jogador vem.
+  const entradaDoPalco = (atraso: number) =>
+    direcao === 0
+      ? animacoes.entrada(0, atraso)
+      : animacoes.doLado(direcao > 0 ? 'direita' : 'esquerda', atraso);
 
   const aoVotar = (opcao: string) =>
     votar.mutate(opcao, {
@@ -132,7 +165,7 @@ export function TelaHistoria({ id }: { id: string }) {
       {fundo(
         <>
           <Segmentos total={sequencia.total} posicao={sequencia.posicao} />
-          <View style={estilos.cabecalho}>
+          <Animated.View entering={animacoes.fade(60)} style={estilos.cabecalho}>
             <Avatar
               iniciais={autor.iniciais}
               tom={autor.tomAvatar}
@@ -159,7 +192,7 @@ export function TelaHistoria({ id }: { id: string }) {
               onPress={() => router.push(`/personagem/${autor.id}`)}
             />
             <BotaoSuave icone={X} rotulo="Fechar" onPress={voltarOuInicio} />
-          </View>
+          </Animated.View>
 
           <View style={estilos.flex}>
             <ScrollView
@@ -167,13 +200,20 @@ export function TelaHistoria({ id }: { id: string }) {
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={estilos.palco}
             >
-              <Adesivo titulo={texto.titulo} resto={texto.resto} />
+              <Animated.View entering={entradaDoPalco(80)} style={estilos.itemDoPalco}>
+                <Adesivo titulo={texto.titulo} resto={texto.resto} />
+              </Animated.View>
               {dados.enquete && (
-                <EnqueteHistoria
-                  enquete={dados.enquete}
-                  votando={votar.isPending}
-                  onVotar={aoVotar}
-                />
+                <Animated.View
+                  entering={entradaDoPalco(220)}
+                  style={[estilos.itemDoPalco, estilos.enquete]}
+                >
+                  <EnqueteHistoria
+                    enquete={dados.enquete}
+                    votando={votar.isPending}
+                    onVotar={aoVotar}
+                  />
+                </Animated.View>
               )}
             </ScrollView>
             {sequencia.anterior && (
@@ -206,9 +246,11 @@ export function TelaHistoria({ id }: { id: string }) {
   );
 }
 
-/** Segmentos do topo (54:1478): vistas em texto, a atual em destaque, as próximas só no trilho. */
+/**
+ * Segmentos do topo (54:1478): vistas em texto, a atual em destaque, as próximas só no trilho.
+ * A história atual enche o segmento ao abrir, o que dá o sentido de "chegou aqui" a cada troca.
+ */
 function Segmentos({ total, posicao }: { total: number; posicao: number }) {
-  const { cores } = useTema();
   return (
     <View
       style={estilos.segmentos}
@@ -218,17 +260,37 @@ function Segmentos({ total, posicao }: { total: number; posicao: number }) {
       accessibilityValue={{ min: 1, max: total, now: posicao + 1 }}
     >
       {Array.from({ length: total }, (_, i) => (
-        <View key={i} style={[estilos.segmento, { backgroundColor: cores.linha }]}>
-          {i <= posicao && (
-            <View
-              style={[
-                estilos.preenchido,
-                { backgroundColor: i < posicao ? cores.texto : cores.destaque },
-              ]}
-            />
-          )}
-        </View>
+        <Segmento key={i} estado={i < posicao ? 'vista' : i === posicao ? 'atual' : 'proxima'} />
       ))}
+    </View>
+  );
+}
+
+function Segmento({ estado }: { estado: 'vista' | 'atual' | 'proxima' }) {
+  const { cores } = useTema();
+  const { reduzido, reduceMotion } = useMovimento();
+  // As vistas já nascem cheias; a atual enche depois de um instante; as próximas ficam vazias.
+  const cheio = useSharedValue(estado === 'vista' ? 1 : 0);
+
+  useEffect(() => {
+    const alvo = estado === 'proxima' ? 0 : 1;
+    cheio.value = withDelay(
+      estado === 'atual' && !reduzido ? 160 : 0,
+      withTiming(alvo, { duration: DURACAO.lenta, easing: CURVA.saida, reduceMotion }),
+    );
+  }, [estado, reduzido, reduceMotion, cheio]);
+
+  const preenchimento = useAnimatedStyle(() => ({ width: `${cheio.value * 100}%` }));
+
+  return (
+    <View style={[estilos.segmento, { backgroundColor: cores.linha }]}>
+      <Animated.View
+        style={[
+          estilos.preenchido,
+          { backgroundColor: estado === 'vista' ? cores.texto : cores.destaque },
+          preenchimento,
+        ]}
+      />
     </View>
   );
 }
@@ -274,12 +336,20 @@ function BordaDeNavegacao({
 
 /** Aviso depois de responder: a resposta virou mensagem direta, com atalho para a conversa. */
 function AvisoEnviada({ autor, conversaId }: { autor: PersonagemResumo; conversaId: string }) {
+  const animacoes = useAnimacoes();
   const conversas = useConversas();
   const conversa =
     conversas.data?.find((c) => c.id === conversaId) ??
     conversas.data?.find((c) => c.personagem.id === autor.id);
   return (
-    <Camada cor="superficie" sombra="elevacao" raio={20} style={estilos.aviso}>
+    <CamadaAnimada
+      cor="superficie"
+      sombra="elevacao"
+      raio={20}
+      entering={animacoes.deSubida()}
+      exiting={animacoes.saida}
+      style={estilos.aviso}
+    >
       <Icone icone={MessageSquare} tamanho={18} cor="destaqueTinta" />
       <Texto estilo="legenda" cor="textoSuave" style={estilos.flex}>
         Enviada para as mensagens com {primeiroNome(autor.nome)}.
@@ -290,7 +360,7 @@ function AvisoEnviada({ autor, conversaId }: { autor: PersonagemResumo; conversa
         tamanho="pequeno"
         onPress={() => router.push(`/dm/${conversa?.id ?? conversaId}`)}
       />
-    </Camada>
+    </CamadaAnimada>
   );
 }
 
@@ -308,6 +378,8 @@ const estilos = StyleSheet.create({
   },
   soFechar: { justifyContent: 'flex-end' },
   autor: { flex: 1 },
+  itemDoPalco: { alignSelf: 'stretch' },
+  enquete: { alignItems: 'center' },
   estado: { flex: 1, paddingHorizontal: 16 },
   palco: {
     flexGrow: 1,

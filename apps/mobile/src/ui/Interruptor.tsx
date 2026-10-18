@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Animated, Pressable, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Camada } from './Camada';
 import { Esfera } from './Esfera';
+import { toqueDeSelecao } from './haptico';
+import { MOLA, useMovimento } from './movimento';
+import { PressableAnimado, useFeedbackDoToque } from './Tocavel';
 
 export interface InterruptorProps {
   valor: boolean;
@@ -15,55 +19,71 @@ const LARGURA = 44;
 const ALTURA = 26;
 const BOLA = 20;
 const FOLGA = 3;
+const CURSO = LARGURA - BOLA - FOLGA * 2;
 
 /**
  * Interruptor 44 x 26 (10 · Aparência). Ligado: trilho em Pílula preta; desligado: afundado.
- * A bola é uma esfera clara (no escuro, a Esfera clara escura do Figma).
+ * A bola é uma esfera clara (no escuro, a Esfera clara escura do Figma). A bola desliza na mola
+ * "firme" e cresce um pouco sob o dedo; o trilho troca de afundado para pílula em crossfade e a
+ * troca dá um háptico de seleção. Com movimento reduzido, tudo troca na hora.
  */
 export function Interruptor({ valor, onMudar, rotulo, desabilitado }: InterruptorProps) {
-  // Valor animado criado uma vez; useState evita ler ref durante o render.
-  const [posicao] = useState(() => new Animated.Value(valor ? 1 : 0));
+  const { reduzido } = useMovimento();
+  // 0 desligado, 1 ligado (a mola passa um pouco do alvo).
+  const posicao = useSharedValue(valor ? 1 : 0);
+  const feedback = useFeedbackDoToque({}, { escala: 1, brilho: 1, desabilitado: !!desabilitado });
+  const { pressao } = feedback;
 
   useEffect(() => {
-    Animated.timing(posicao, {
-      toValue: valor ? 1 : 0,
-      duration: 160,
-      useNativeDriver: true,
-    }).start();
-  }, [valor, posicao]);
+    const alvo = valor ? 1 : 0;
+    posicao.value = reduzido ? alvo : withSpring(alvo, MOLA.firme);
+  }, [valor, reduzido, posicao]);
 
-  const deslocamento = posicao.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, LARGURA - BOLA - FOLGA * 2],
-  });
+  const bola = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: posicao.value * CURSO },
+      { scale: reduzido ? 1 : 1 + 0.12 * Math.max(0, pressao.value) },
+    ],
+  }));
+  const ligado = useAnimatedStyle(() => ({
+    opacity: Math.min(1, Math.max(0, posicao.value)),
+  }));
 
   return (
-    <Pressable
-      onPress={() => onMudar(!valor)}
+    <PressableAnimado
+      onPress={() => {
+        toqueDeSelecao();
+        onMudar(!valor);
+      }}
+      onPressIn={feedback.onPressIn}
+      onPressOut={feedback.onPressOut}
       disabled={desabilitado}
       accessibilityRole="switch"
       accessibilityLabel={rotulo}
       accessibilityState={{ checked: valor, disabled: !!desabilitado }}
       hitSlop={8}
-      style={{ opacity: desabilitado ? 0.5 : 1 }}
+      style={feedback.style}
     >
-      <Camada
-        gradiente={valor ? 'pilulaPreta' : undefined}
-        cor={valor ? undefined : 'superficie2'}
-        sombra={valor ? undefined : 'afundado'}
-        raio={ALTURA / 2}
-        // O trilho corta a sombra da bola, como no Figma.
-        style={estilos.trilho}
-      >
-        <Animated.View style={[estilos.bola, { transform: [{ translateX: deslocamento }] }]}>
+      {/* O trilho corta a sombra da bola, como no Figma. */}
+      <View style={estilos.trilho}>
+        <Camada
+          cor="superficie2"
+          sombra="afundado"
+          raio={ALTURA / 2}
+          style={StyleSheet.absoluteFill}
+        />
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, ligado]}>
+          <Camada gradiente="pilulaPreta" raio={ALTURA / 2} style={StyleSheet.absoluteFill} />
+        </Animated.View>
+        <Animated.View style={[estilos.bola, bola]}>
           <Esfera tom="claro" tamanho={BOLA} />
         </Animated.View>
-      </Camada>
-    </Pressable>
+      </View>
+    </PressableAnimado>
   );
 }
 
 const estilos = StyleSheet.create({
-  trilho: { width: LARGURA, height: ALTURA, overflow: 'hidden' },
+  trilho: { width: LARGURA, height: ALTURA, borderRadius: ALTURA / 2, overflow: 'hidden' },
   bola: { position: 'absolute', top: FOLGA, left: FOLGA },
 });

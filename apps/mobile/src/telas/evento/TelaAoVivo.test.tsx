@@ -151,6 +151,49 @@ describe('17 · Evento ao vivo', () => {
     expect(router.dismissTo).toHaveBeenCalledWith('/');
   });
 
+  it('depois de subir ao palco há um suspense curto antes de revelar o vencedor', async () => {
+    simular();
+    await renderizarTela(<TelaAoVivo id={evento.id} />);
+
+    await fireEvent.press(await screen.findByRole('radio', { name: /^Discurso Seguro/ }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Subir ao palco' }));
+
+    // O servidor já respondeu, mas o nome ainda está no envelope: nada de resultado nem de vibração.
+    expect(await screen.findByText('Abrindo o envelope…')).toBeTruthy();
+    expect(screen.queryByText('Você venceu')).toBeNull();
+    expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Ver o feed' })).toBeDisabled();
+
+    // A revelação traz o resultado, a vibração de sucesso e libera a saída.
+    expect(await screen.findByText('Você venceu', {}, { timeout: 3000 })).toBeTruthy();
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
+    expect(screen.queryByText('Abrindo o envelope…')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver o feed' })).toBeEnabled();
+  });
+
+  it('nos últimos 10 segundos o cronômetro continua com um anúncio só por marco', async () => {
+    const anuncio = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    simular();
+    await renderizarTela(<TelaAoVivo id={evento.id} />);
+    await screen.findByText('decida em 0:30');
+
+    // Em passos, como o relógio real: o anúncio sai quando o marco é cruzado.
+    for (const ms of [10_000, 10_000, 4_000]) {
+      await act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+    }
+    expect(screen.getByText('decida em 0:06')).toBeTruthy();
+    // 20, 10 e nada além disso (o 5 ainda não chegou): sem anúncio a cada segundo da urgência.
+    expect(anuncio.mock.calls.map((c) => c[0])).toEqual([
+      'Faltam 20 segundos para escolher.',
+      'Faltam 10 segundos para escolher.',
+    ]);
+    expect(
+      screen.getByRole('progressbar', { name: 'Tempo para escolher, 6 segundos' }),
+    ).toBeTruthy();
+  });
+
   it('quando o tempo acaba, destaca o seguro e não escolhe sozinho', async () => {
     const anuncio = jest.spyOn(AccessibilityInfo, 'announceForAccessibility');
     simular();

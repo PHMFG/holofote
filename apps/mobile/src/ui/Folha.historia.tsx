@@ -15,7 +15,7 @@ export const historia: Historia = {
     <View
       style={{ backgroundColor: ESCURECER, paddingTop: 40, borderRadius: 24, overflow: 'hidden' }}
     >
-      <Folha>
+      <Folha arrastavel={false}>
         <Esfera tom="escuro" tamanho={60}>
           <Icone icone={Zap} tamanho={27} cor={corSobreEsfera('escuro')} traco={3.6} />
         </Esfera>

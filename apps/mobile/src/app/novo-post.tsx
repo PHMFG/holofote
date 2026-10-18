@@ -3,15 +3,25 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, KeyboardAvoidingView, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../acoes/erros';
 import { useMundo, usePrevia, usePublicar, useRelacoes } from '../api/consultas';
+import { useAnimacoes } from '../telas/animacao/animacoes';
+import { Pop } from '../telas/animacao/Pop';
 import { CartaoPrevia } from '../telas/post/CartaoPrevia';
+import { SucessoDePublicacao } from '../telas/post/SucessoDePublicacao';
 import { Avatar } from '../ui/Avatar';
 import { BotaoMetal } from '../ui/BotaoMetal';
 import { Cabecalho } from '../ui/Cabecalho';
 import { CampoTexto } from '../ui/CampoTexto';
 import { Cartao } from '../ui/Cartao';
 import { Chip } from '../ui/Chip';
+import { DURACAO, useMovimento } from '../ui/movimento';
 import { RotuloSecao } from '../ui/Rotulo';
 import { Tela, type TrechoVisivel } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
@@ -20,6 +30,8 @@ const LIMITE = 280;
 const MAX_MARCADOS = 3;
 /** Espera depois da última tecla antes de pedir a prévia ao motor. */
 const ESPERA_PREVIA_MS = 500;
+/** Quanto o aviso de "Publicado" fica na tela antes de abrir o post. */
+const ESPERA_SUCESSO_MS = 600;
 
 const TONS: readonly { valor: Tom; rotulo: string }[] = [
   { valor: 'fofo', rotulo: 'Fofo' },
@@ -37,6 +49,12 @@ export default function NovoPost() {
   const [texto, setTexto] = useState('');
   const [tom, setTom] = useState<Tom>('sincero');
   const [marcados, setMarcados] = useState<string[]>([]);
+  // Rota do post publicado: enquanto definida, o aviso de sucesso cobre a tela.
+  const [aberto, setAberto] = useState<string | null>(null);
+  const animacoes = useAnimacoes();
+  const { reduzido, reduceMotion } = useMovimento();
+  const tremor = useSharedValue(0);
+  const estiloDoTremor = useAnimatedStyle(() => ({ transform: [{ translateX: tremor.value }] }));
   // Onde estão os chips de tom: com o teclado aberto a Tela rola até eles ficarem visíveis.
   const [trechoDoTom, setTrechoDoTom] = useState<TrechoVisivel | null>(null);
 
@@ -51,6 +69,13 @@ export default function NovoPost() {
     return () => clearTimeout(espera);
   }, [pedido, pedirPrevia]);
 
+  // O feedback de sucesso aparece e só então o post abre; sair da tela antes cancela a ida.
+  useEffect(() => {
+    if (!aberto) return;
+    const espera = setTimeout(() => router.replace(aberto), reduzido ? 0 : ESPERA_SUCESSO_MS);
+    return () => clearTimeout(espera);
+  }, [aberto, reduzido]);
+
   const elenco = (relacoes.data?.nos ?? []).filter((no) => no.personagem.papel === 'elenco');
   const jogador = mundo.data?.jogador;
   const custo = previa.data?.custo ?? 1;
@@ -62,17 +87,30 @@ export default function NovoPost() {
     }
     if (marcados.length >= MAX_MARCADOS) {
       AccessibilityInfo.announceForAccessibility('Dá para marcar até 3 personagens.');
+      // O limite também se vê: a fileira balança de leve (sem movimento reduzido).
+      if (!reduzido) {
+        const passo = { duration: DURACAO.instante / 2, reduceMotion };
+        tremor.set(
+          withSequence(
+            withTiming(-6, passo),
+            withTiming(6, passo),
+            withTiming(-4, passo),
+            withTiming(4, passo),
+            withTiming(0, passo),
+          ),
+        );
+      }
       return;
     }
     setMarcados([...marcados, id]);
   };
 
   const enviar = () => {
-    if (!textoLimpo || publicar.isPending) return;
+    if (!textoLimpo || publicar.isPending || aberto) return;
     publicar.mutate(pedido, {
       onSuccess: ({ post, consequencia }) => {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace(`/post/${post.id}?acao=${consequencia.eventoId}`);
+        setAberto(`/post/${post.id}?acao=${consequencia.eventoId}`);
       },
       onError: tratarErroDeAcao,
     });
@@ -87,37 +125,40 @@ export default function NovoPost() {
           <BotaoMetal
             rotulo={`Publicar · ${custo} energia`}
             onPress={enviar}
-            disabled={!textoLimpo || publicar.isPending}
+            disabled={!textoLimpo || publicar.isPending || !!aberto}
           />
         }
       >
-        <Cartao style={estilos.editor}>
-          <View style={estilos.autor}>
-            <Avatar
-              iniciais={jogador?.iniciais ?? ''}
-              tom="escuro"
-              nome={jogador?.nome ?? 'Você'}
-            />
-            <View>
-              <Texto estilo="corpoForte">{jogador?.nome ?? 'Você'}</Texto>
-              <Texto estilo="legenda" cor="textoSuave">
-                Público · todo o elenco vê
-              </Texto>
+        <Animated.View entering={animacoes.entrada(0)}>
+          <Cartao style={estilos.editor}>
+            <View style={estilos.autor}>
+              <Avatar
+                iniciais={jogador?.iniciais ?? ''}
+                tom="escuro"
+                nome={jogador?.nome ?? 'Você'}
+              />
+              <View>
+                <Texto estilo="corpoForte">{jogador?.nome ?? 'Você'}</Texto>
+                <Texto estilo="legenda" cor="textoSuave">
+                  Público · todo o elenco vê
+                </Texto>
+              </View>
             </View>
-          </View>
-          <CampoTexto
-            rotulo="Seu post"
-            testID="campo-post"
-            value={texto}
-            onChangeText={setTexto}
-            placeholder="O que o seu mundo precisa saber?"
-            limite={LIMITE}
-            multiline
-            autoFocus
-          />
-        </Cartao>
+            <CampoTexto
+              rotulo="Seu post"
+              testID="campo-post"
+              value={texto}
+              onChangeText={setTexto}
+              placeholder="O que o seu mundo precisa saber?"
+              limite={LIMITE}
+              multiline
+              autoFocus
+            />
+          </Cartao>
+        </Animated.View>
 
-        <View
+        <Animated.View
+          entering={animacoes.entrada(1)}
           style={estilos.secao}
           onLayout={(e) =>
             setTrechoDoTom({ y: e.nativeEvent.layout.y, altura: e.nativeEvent.layout.height })
@@ -126,37 +167,44 @@ export default function NovoPost() {
           <RotuloSecao texto="Tom" />
           <View style={estilos.chips}>
             {TONS.map((t) => (
-              <Chip
-                key={t.valor}
-                rotulo={t.rotulo}
-                selecionado={tom === t.valor}
-                onPress={() => setTom(t.valor)}
-              />
+              <Pop key={t.valor} gatilho={tom === t.valor} soAoLigar escala={1.08}>
+                <Chip
+                  rotulo={t.rotulo}
+                  selecionado={tom === t.valor}
+                  onPress={() => setTom(t.valor)}
+                />
+              </Pop>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {elenco.length > 0 && (
-          <View style={estilos.secao}>
+          <Animated.View entering={animacoes.entrada(2)} style={estilos.secao}>
             <RotuloSecao
               texto="Marcar"
               meta={`${marcados.length} de ${MAX_MARCADOS}`}
               corMeta="textoSuave"
             />
-            <View style={estilos.chips}>
+            <Animated.View style={[estilos.chips, estiloDoTremor]}>
               {elenco.map(({ personagem }) => (
-                <Chip
+                <Pop
                   key={personagem.id}
-                  rotulo={personagem.nome}
-                  selecionado={marcados.includes(personagem.id)}
-                  onPress={() => alternarMarcado(personagem.id)}
-                />
+                  gatilho={marcados.includes(personagem.id)}
+                  soAoLigar
+                  escala={1.08}
+                >
+                  <Chip
+                    rotulo={personagem.nome}
+                    selecionado={marcados.includes(personagem.id)}
+                    onPress={() => alternarMarcado(personagem.id)}
+                  />
+                </Pop>
               ))}
-            </View>
-          </View>
+            </Animated.View>
+          </Animated.View>
         )}
 
-        <View style={estilos.secao}>
+        <Animated.View entering={animacoes.entrada(3)} style={estilos.secao}>
           <RotuloSecao texto="Prévia do motor" meta="regras, sem IA" corMeta="textoSuave" />
           <CartaoPrevia
             previa={textoLimpo ? previa.data : undefined}
@@ -164,12 +212,15 @@ export default function NovoPost() {
             calculando={previa.isPending}
             erro={previa.isError}
           />
-        </View>
-        <Texto estilo="legenda" cor="textoSuave">
-          Os números reais saem do mesmo motor, com um pouco de sorte. A IA escreve as reações, e
-          quem estiver online responde primeiro.
-        </Texto>
+        </Animated.View>
+        <Animated.View entering={animacoes.entrada(4)}>
+          <Texto estilo="legenda" cor="textoSuave">
+            Os números reais saem do mesmo motor, com um pouco de sorte. A IA escreve as reações, e
+            quem estiver online responde primeiro.
+          </Texto>
+        </Animated.View>
       </Tela>
+      {aberto && <SucessoDePublicacao />}
     </KeyboardAvoidingView>
   );
 }

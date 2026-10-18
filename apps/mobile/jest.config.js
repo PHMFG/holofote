@@ -10,6 +10,8 @@ module.exports = {
   // O build ESM do lucide (.mjs) não passa pelo Babel do Jest; o CommonJS passa.
   moduleNameMapper: {
     '^lucide-react-native$': require.resolve('lucide-react-native'),
+    // Reanimated simplificado nos testes: ver src/testes/reanimado.ts.
+    '^react-native-reanimated$': '<rootDir>/src/testes/reanimado.ts',
   },
-  setupFiles: ['<rootDir>/src/testes/preparar.ts'],
+  setupFiles: ['react-native-gesture-handler/jestSetup.js', '<rootDir>/src/testes/preparar.ts'],
 };

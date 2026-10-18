@@ -1,13 +1,22 @@
 import type { Personagem } from '@holofote/shared';
 import { router } from 'expo-router';
 import { ArrowDown, ArrowUp, BadgeCheck, Sparkles, Volume2, VolumeX } from 'lucide-react-native';
+import { useEffect, type ReactNode } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { ErroDaApi } from '../../api/cliente';
 import { useAbrirConversa, usePersonagem, useRegistro, useSilenciar } from '../../api/consultas';
 import { formatarNumero, primeiroNome } from '../../formatar';
+import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
-import { BarraProgresso } from '../../ui/BarraProgresso';
 import { BotaoMetal } from '../../ui/BotaoMetal';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -15,9 +24,13 @@ import { Chip } from '../../ui/Chip';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
 import { Rotulo } from '../../ui/Rotulo';
+import { CURVA, DURACAO, MOLA, useMovimento } from '../../ui/movimento';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Capa } from '../perfil/Capa';
+import { BarraAnimada, ItemFluido, Pop, Troca } from '../perfil/efeitos';
+import { NumeroContando } from '../perfil/NumeroContando';
+import { TelaComCapa } from '../perfil/TelaComCapa';
 import { variacaoDeHoje } from '../perfil/variacao';
 import { comArroba } from '../registro/formatar';
 import { useAgora } from '../../tempo';
@@ -90,128 +103,202 @@ function Perfil({ personagem: p }: { personagem: Personagem }) {
   ];
 
   return (
-    <Tela gap={12}>
+    <TelaComCapa gap={12}>
       <Capa
         acoes={<Cabecalho variante="elevado" />}
-        avatar={<Avatar iniciais={p.iniciais} tom={p.tomAvatar} tamanho={84} nome={p.nome} />}
+        avatar={
+          <AvatarDoPerfil silenciado={p.silenciado}>
+            <Avatar iniciais={p.iniciais} tom={p.tomAvatar} tamanho={84} nome={p.nome} />
+          </AvatarDoPerfil>
+        }
       />
 
-      <View style={estilos.identidade}>
-        <View
-          style={estilos.nome}
-          accessible
-          accessibilityRole="header"
-          accessibilityLabel={p.verificado ? `${p.nome}, verificado` : p.nome}
-        >
-          <Texto estilo="titulo">{p.nome}</Texto>
-          {/* icon/verificado do Figma é um selo preenchido próprio; BadgeCheck é o mais próximo. */}
-          {p.verificado && <Icone icone={BadgeCheck} tamanho={18} cor="texto" traco={2} />}
-        </View>
-        <Texto cor="textoSuave">{comArroba(p.handle)}</Texto>
-        {p.silenciado && (
+      <ItemFluido indice={0}>
+        <View style={estilos.identidade}>
           <View
-            style={estilos.silenciado}
+            style={estilos.nome}
             accessible
-            accessibilityLabel={`${nome} está silenciado`}
+            accessibilityRole="header"
+            accessibilityLabel={p.verificado ? `${p.nome}, verificado` : p.nome}
           >
-            <Icone icone={VolumeX} tamanho={14} cor="textoSuave" traco={2} />
-            <Texto estilo="legenda" cor="textoSuave">
-              Silenciado · fora do seu feed e das mensagens
-            </Texto>
+            <Texto estilo="titulo">{p.nome}</Texto>
+            {/* icon/verificado do Figma é um selo preenchido próprio; BadgeCheck é o mais próximo. */}
+            {p.verificado && <Icone icone={BadgeCheck} tamanho={18} cor="texto" traco={2} />}
           </View>
-        )}
-      </View>
-      {p.ficha ? <Texto>{p.ficha}</Texto> : null}
-      <View style={estilos.numeros}>
-        {numeros.map((n) => (
-          <View key={n.rotulo} style={estilos.numero} accessible>
-            <Texto estilo="corpoForte">{n.valor}</Texto>
-            <Texto cor="textoSuave">{n.rotulo}</Texto>
-          </View>
-        ))}
-      </View>
+          <Texto cor="textoSuave">{comArroba(p.handle)}</Texto>
+          {p.silenciado && <AvisoSilenciado nome={nome} />}
+        </View>
+      </ItemFluido>
+      {p.ficha ? (
+        <ItemFluido indice={1}>
+          <Texto>{p.ficha}</Texto>
+        </ItemFluido>
+      ) : null}
+      <ItemFluido indice={2}>
+        <View style={estilos.numeros}>
+          {numeros.map((n, i) => (
+            <View
+              key={n.rotulo}
+              style={estilos.numero}
+              accessible
+              accessibilityLabel={`${n.valor} ${n.rotulo}`}
+            >
+              <NumeroContando estilo="corpoForte" texto={n.valor} atraso={150 + i * 70} />
+              <Texto cor="textoSuave">{n.rotulo}</Texto>
+            </View>
+          ))}
+        </View>
+      </ItemFluido>
 
       {!ehJogador && (
-        <BotaoMetal
-          rotulo={abrirConversa.isPending ? 'Abrindo conversa…' : 'Mandar mensagem'}
-          disabled={abrirConversa.isPending}
-          onPress={mandarMensagem}
-        />
+        <ItemFluido indice={3}>
+          <BotaoMetal
+            rotulo={abrirConversa.isPending ? 'Abrindo conversa…' : 'Mandar mensagem'}
+            disabled={abrirConversa.isPending}
+            onPress={mandarMensagem}
+          />
+        </ItemFluido>
       )}
 
       {!ehJogador && (
-        <Chip
-          rotulo={p.silenciado ? 'Deixar de silenciar' : 'Silenciar'}
-          icone={p.silenciado ? Volume2 : VolumeX}
-          onPress={silenciar.isPending ? undefined : alternarSilencio}
-        />
+        <ItemFluido indice={4}>
+          <Troca chave={p.silenciado ? 'silenciado' : 'ativo'}>
+            <Chip
+              rotulo={p.silenciado ? 'Deixar de silenciar' : 'Silenciar'}
+              icone={p.silenciado ? Volume2 : VolumeX}
+              onPress={silenciar.isPending ? undefined : alternarSilencio}
+            />
+          </Troca>
+        </ItemFluido>
       )}
 
       {p.relacao && (
-        <Cartao style={estilos.cartao}>
-          <View
-            style={estilos.linhaEntre}
-            accessible
-            accessibilityLabel={`Sua relação: ${p.relacao.rotulo}, ${p.relacao.afinidade}%`}
-          >
-            <Texto estilo="mini" cor="textoSuave">
-              Sua relação
-            </Texto>
-            <Texto estilo="corpoForte">{p.relacao.afinidade}%</Texto>
-          </View>
-          <Texto estilo="secao">{p.relacao.rotulo}</Texto>
-          <BarraProgresso valor={p.relacao.afinidade / 100} rotulo={`Afinidade com ${nome}`} />
-          {hoje !== 0 && (
+        <ItemFluido indice={5}>
+          <Cartao style={estilos.cartao}>
             <View
-              style={estilos.efeito}
+              style={estilos.linhaEntre}
               accessible
-              accessibilityLabel={`Afinidade ${hoje > 0 ? 'subiu' : 'caiu'} ${Math.abs(hoje)}% hoje`}
+              accessibilityLabel={`Sua relação: ${p.relacao.rotulo}, ${p.relacao.afinidade}%`}
             >
-              <Icone
-                icone={hoje > 0 ? ArrowUp : ArrowDown}
-                tamanho={12}
-                cor="textoSuave"
-                traco={2}
-              />
-              <Texto estilo="legenda" cor="textoSuave">
-                {Math.abs(hoje)}% hoje
+              <Texto estilo="mini" cor="textoSuave">
+                Sua relação
               </Texto>
+              <NumeroContando estilo="corpoForte" texto={`${p.relacao.afinidade}%`} atraso={350} />
             </View>
-          )}
-        </Cartao>
+            <Troca chave={p.relacao.rotulo}>
+              <Texto estilo="secao">{p.relacao.rotulo}</Texto>
+            </Troca>
+            <BarraAnimada
+              valor={p.relacao.afinidade / 100}
+              rotulo={`Afinidade com ${nome}`}
+              atraso={400}
+            />
+            {hoje !== 0 && (
+              <Pop
+                key={hoje}
+                de={0.5}
+                deslocamento={hoje > 0 ? 6 : -6}
+                atraso={500}
+                mola={MOLA.viva}
+                style={estilos.alinhaInicio}
+              >
+                <View
+                  style={estilos.efeito}
+                  accessible
+                  accessibilityLabel={`Afinidade ${hoje > 0 ? 'subiu' : 'caiu'} ${Math.abs(hoje)}% hoje`}
+                >
+                  <Icone
+                    icone={hoje > 0 ? ArrowUp : ArrowDown}
+                    tamanho={12}
+                    cor="textoSuave"
+                    traco={2}
+                  />
+                  <Texto estilo="legenda" cor="textoSuave">
+                    {Math.abs(hoje)}% hoje
+                  </Texto>
+                </View>
+              </Pop>
+            )}
+          </Cartao>
+        </ItemFluido>
       )}
 
       {!ehJogador && (
-        <Cartao style={estilos.cartao}>
-          <View style={estilos.tituloMemoria}>
-            {/* icon/estrela do Figma (26:421) é desenho próprio; Sparkles é o mais próximo. */}
-            <Icone icone={Sparkles} tamanho={13} cor="destaqueTinta" traco={2} />
-            <Texto estilo="mini" cor="destaqueTinta" accessibilityRole="header">
-              O que {nome} lembra de você
-            </Texto>
-          </View>
-          {p.lembra.length === 0 ? (
-            <Texto cor="textoSuave">Ainda não guardou nenhuma lembrança sua.</Texto>
-          ) : (
-            p.lembra.map((fato, i) => {
-              const { dia, texto } = separarDia(fato);
-              return (
-                <View
-                  key={`${i}-${fato}`}
-                  style={estilos.fato}
-                  accessible
-                  accessibilityLabel={dia ? `${dia}: ${texto}` : texto}
-                >
-                  {dia && <Rotulo texto={dia} variante="data" />}
-                  <Texto style={estilos.encolhe}>{texto}</Texto>
-                </View>
-              );
-            })
-          )}
-        </Cartao>
+        <ItemFluido indice={6}>
+          <Cartao style={estilos.cartao}>
+            <View style={estilos.tituloMemoria}>
+              {/* icon/estrela do Figma (26:421) é desenho próprio; Sparkles é o mais próximo. */}
+              <Icone icone={Sparkles} tamanho={13} cor="destaqueTinta" traco={2} />
+              <Texto estilo="mini" cor="destaqueTinta" accessibilityRole="header">
+                O que {nome} lembra de você
+              </Texto>
+            </View>
+            {p.lembra.length === 0 ? (
+              <Texto cor="textoSuave">Ainda não guardou nenhuma lembrança sua.</Texto>
+            ) : (
+              p.lembra.map((fato, i) => {
+                const { dia, texto } = separarDia(fato);
+                return (
+                  <Aparecer key={`${i}-${fato}`} indice={i} atraso={320}>
+                    <View
+                      style={estilos.fato}
+                      accessible
+                      accessibilityLabel={dia ? `${dia}: ${texto}` : texto}
+                    >
+                      {dia && <Rotulo texto={dia} variante="data" />}
+                      <Texto style={estilos.encolhe}>{texto}</Texto>
+                    </View>
+                  </Aparecer>
+                );
+              })
+            )}
+          </Cartao>
+        </ItemFluido>
       )}
-    </Tela>
+    </TelaComCapa>
   );
+}
+
+/** Aviso de silenciado: entra com um leve deslize e o ícone com mola; sai com fade. */
+function AvisoSilenciado({ nome }: { nome: string }) {
+  const { reduzido, reduceMotion } = useMovimento();
+  return (
+    <Animated.View
+      entering={
+        reduzido
+          ? FadeIn.duration(DURACAO.rapida).reduceMotion(reduceMotion)
+          : FadeInDown.duration(DURACAO.media).easing(CURVA.saida).reduceMotion(reduceMotion)
+      }
+      exiting={FadeOut.duration(DURACAO.rapida).reduceMotion(reduceMotion)}
+      style={estilos.silenciado}
+      accessible
+      accessibilityLabel={`${nome} está silenciado`}
+    >
+      <Pop de={0.2} mola={MOLA.viva}>
+        <Icone icone={VolumeX} tamanho={14} cor="textoSuave" traco={2} />
+      </Pop>
+      <Texto estilo="legenda" cor="textoSuave">
+        Silenciado · fora do seu feed e das mensagens
+      </Texto>
+    </Animated.View>
+  );
+}
+
+/** Avatar que esmaece quando o personagem é silenciado e volta ao deixar de silenciar. */
+function AvatarDoPerfil({ silenciado, children }: { silenciado: boolean; children: ReactNode }) {
+  const { tempo, reduceMotion } = useMovimento();
+  const opacidade = useSharedValue(silenciado ? 0.5 : 1);
+  useEffect(() => {
+    opacidade.value = withTiming(silenciado ? 0.5 : 1, {
+      duration: tempo(DURACAO.media),
+      easing: CURVA.saida,
+      reduceMotion,
+    });
+    // `tempo` e `reduceMotion` mudam de identidade a cada render; só o estado importa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [silenciado]);
+  const estilo = useAnimatedStyle(() => ({ opacity: opacidade.value }));
+  return <Animated.View style={estilo}>{children}</Animated.View>;
 }
 
 const estilos = StyleSheet.create({
@@ -223,6 +310,7 @@ const estilos = StyleSheet.create({
   cartao: { gap: 10 },
   linhaEntre: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   efeito: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  alinhaInicio: { alignSelf: 'flex-start' },
   tituloMemoria: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   fato: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   encolhe: { flex: 1 },

@@ -21,6 +21,7 @@ import { useAgora } from '../../../tempo';
 import { CartaoConsequencia, CUSTO_DESFAZER } from '../../../telas/post/CartaoConsequencia';
 import { PostPrincipal } from '../../../telas/post/PostPrincipal';
 import { PreviaRespostas } from '../../../telas/post/PreviaRespostas';
+import { Aparecer } from '../../../ui/Aparecer';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Compositor } from '../../../ui/Compositor';
 import { EstadoTela } from '../../../ui/EstadoTela';
@@ -152,27 +153,33 @@ export default function PostDetalhe() {
           />
         }
       >
-        <PostPrincipal post={atual} agora={agora} onCurtir={() => aoCurtir(atual)} />
+        <Aparecer indice={0}>
+          <PostPrincipal post={atual} agora={agora} onCurtir={() => aoCurtir(atual)} />
+        </Aparecer>
         {c && (
-          <CartaoConsequencia
-            consequencia={c}
-            desde={atual.criadoEm}
-            agora={agora}
-            nomePorId={nomePorId}
-            podeDesfazer={podeDesfazer}
-            onDesfazer={pedirDesfazer}
-          />
+          <Aparecer indice={1}>
+            <CartaoConsequencia
+              consequencia={c}
+              desde={atual.criadoEm}
+              agora={agora}
+              nomePorId={nomePorId}
+              podeDesfazer={podeDesfazer}
+              onDesfazer={pedirDesfazer}
+            />
+          </Aparecer>
         )}
-        <PreviaRespostas
-          postId={id}
-          respostas={thread.data?.respostas}
-          digitando={digitando}
-          carregando={thread.isPending}
-          erro={thread.isError}
-          agora={agora}
-          diaAtual={mundo.data?.dia}
-          onCurtir={aoCurtir}
-        />
+        <Aparecer indice={2}>
+          <PreviaRespostas
+            postId={id}
+            respostas={thread.data?.respostas}
+            digitando={digitando}
+            carregando={thread.isPending}
+            erro={thread.isError}
+            agora={agora}
+            diaAtual={mundo.data?.dia}
+            onCurtir={aoCurtir}
+          />
+        </Aparecer>
       </Tela>
     </KeyboardAvoidingView>
   );

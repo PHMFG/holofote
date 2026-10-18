@@ -1,12 +1,19 @@
 import { NOMES_DESTAQUE, destaques, type NomeDestaque } from '@holofote/tokens';
 import { Check, Monitor, Moon, Sun } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useMundo, useSalvarAparencia } from '../../api/consultas';
 import { useAparencia, type PreferenciaTema } from '../../estado/aparencia';
 import { useTema } from '../../tema/ProvedorTema';
+import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
-import { BarraProgresso } from '../../ui/BarraProgresso';
 import { BotaoMetal } from '../../ui/BotaoMetal';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Camada } from '../../ui/Camada';
@@ -19,6 +26,8 @@ import { RotuloSecao } from '../../ui/Rotulo';
 import { Segmentado } from '../../ui/Segmentado';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { DURACAO, ESCALA_TOQUE, MOLA, useMovimento } from '../../ui/movimento';
+import { BarraAnimada, Pop, Troca } from '../perfil/efeitos';
 import { useAjustes, useReduzirMovimentoDoSistema } from './ajustes';
 
 export const NOME_DESTAQUE: Record<NomeDestaque, string> = {
@@ -56,11 +65,14 @@ export function TelaAparencia() {
 
   return (
     <Tela cabecalho={<Cabecalho titulo="Aparência" />} gap={14}>
-      <Grupo titulo="Prévia">
-        <Previa destaque={destaque} tema={tema} />
+      <Grupo titulo="Prévia" indice={0}>
+        {/* Cada troca de tema ou de cor faz a prévia anterior se dissolver na nova. */}
+        <Troca chave={`${tema}-${destaque}`}>
+          <Previa destaque={destaque} tema={tema} />
+        </Troca>
       </Grupo>
 
-      <Grupo titulo="Tema">
+      <Grupo titulo="Tema" indice={1}>
         <Segmentado<PreferenciaTema>
           rotulo="Tema"
           valor={tema}
@@ -76,7 +88,7 @@ export function TelaAparencia() {
         />
       </Grupo>
 
-      <Grupo titulo="Cor de destaque">
+      <Grupo titulo="Cor de destaque" indice={2}>
         <Cartao style={estilos.cores}>
           <View
             style={estilos.amostras}
@@ -107,19 +119,27 @@ export function TelaAparencia() {
         </Cartao>
       </Grupo>
 
-      <Grupo titulo="Ajustes">
+      <Grupo titulo="Ajustes" indice={3}>
         <Ajustes />
       </Grupo>
     </Tela>
   );
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+function Grupo({
+  titulo,
+  indice,
+  children,
+}: {
+  titulo: string;
+  indice: number;
+  children: ReactNode;
+}) {
   return (
-    <View style={estilos.grupo}>
+    <Aparecer indice={indice} style={estilos.grupo}>
       <RotuloSecao texto={titulo} />
       {children}
-    </View>
+    </Aparecer>
   );
 }
 
@@ -151,7 +171,7 @@ function Previa({ destaque, tema }: { destaque: NomeDestaque; tema: PreferenciaT
           </View>
           <Chip rotulo="Chip de exemplo" variante="suave" tamanho="pequeno" />
         </View>
-        <BarraProgresso valor={0.62} rotulo="Barra de exemplo" />
+        <BarraAnimada valor={0.62} rotulo="Barra de exemplo" atraso={150} />
         <View style={estilos.linha}>
           <View style={[estilos.ponto, { backgroundColor: cores.destaque }]} />
           <Texto estilo="legenda" cor="textoSuave" style={estilos.flex}>
@@ -167,26 +187,74 @@ function Previa({ destaque, tema }: { destaque: NomeDestaque; tema: PreferenciaT
   );
 }
 
-/** Bolinha de cor no anel (28:500): a escolhida ganha o anel em texto e o check. */
+/**
+ * Bolinha de cor no anel (28:500): a escolhida ganha o anel em texto e o check. Escolher dá um
+ * pop (a bolinha afunda e volta com mola), o anel se fecha em volta dela e o check salta; o
+ * toque afunda a bolinha enquanto o dedo está em cima.
+ */
 function Amostra(p: { nome: NomeDestaque; escolhida: boolean; onPress: () => void }) {
   const { cores } = useTema();
+  const { reduzido } = useMovimento();
+  const anelVisivel = useSharedValue(p.escolhida ? 1 : 0);
+  const pop = useSharedValue(0);
+  const toque = useSharedValue(0);
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (reduzido) {
+      anelVisivel.value = withTiming(p.escolhida ? 1 : 0, { duration: DURACAO.rapida });
+      return;
+    }
+    anelVisivel.value = withSpring(p.escolhida ? 1 : 0, MOLA.viva);
+    if (p.escolhida && !primeira.current) {
+      pop.value = withSequence(withTiming(-0.16, { duration: 90 }), withSpring(0, MOLA.viva));
+    }
+    primeira.current = false;
+  }, [p.escolhida, reduzido, anelVisivel, pop]);
+  const estiloAnel = useAnimatedStyle(() => ({
+    opacity: Math.min(1, anelVisivel.value),
+    transform: [{ scale: 1.2 - 0.2 * Math.min(1.2, anelVisivel.value) }],
+  }));
+  const estiloBola = useAnimatedStyle(() => ({
+    transform: reduzido ? [] : [{ scale: 1 + pop.value - (1 - ESCALA_TOQUE) * toque.value }],
+  }));
   return (
     <Pressable
       onPress={p.onPress}
+      onPressIn={() => {
+        toque.value = withTiming(1, { duration: DURACAO.instante });
+      }}
+      onPressOut={() => {
+        toque.value = withSpring(0, MOLA.firme);
+      }}
       accessibilityRole="radio"
       accessibilityLabel={NOME_DESTAQUE[p.nome]}
       accessibilityState={{ checked: p.escolhida }}
       hitSlop={4}
       style={estilos.amostra}
     >
-      <View style={[estilos.anel, { borderColor: p.escolhida ? cores.texto : 'transparent' }]}>
-        <Camada
-          sombra="esferaClara"
-          raio={20}
-          style={[estilos.cor, { backgroundColor: destaques[p.nome].base }]}
-        >
-          {p.escolhida && <Icone icone={Check} tamanho={18} cor="destaqueSobre" traco={2.4} />}
-        </Camada>
+      <View style={[estilos.anel, { borderColor: 'transparent' }]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            estilos.anelDaEscolha,
+            { borderColor: cores.texto },
+            estiloAnel,
+          ]}
+        />
+        <Animated.View style={estiloBola}>
+          <Camada
+            sombra="esferaClara"
+            raio={20}
+            style={[estilos.cor, { backgroundColor: destaques[p.nome].base }]}
+          >
+            {p.escolhida && (
+              <Pop de={0.2} mola={MOLA.viva}>
+                <Icone icone={Check} tamanho={18} cor="destaqueSobre" traco={2.4} />
+              </Pop>
+            )}
+          </Camada>
+        </Animated.View>
       </View>
       <Texto estilo="legenda" cor={p.escolhida ? 'texto' : 'textoSuave'} numberOfLines={1}>
         {NOME_DESTAQUE[p.nome]}
@@ -232,5 +300,6 @@ const estilos = StyleSheet.create({
   amostras: { flexDirection: 'row', justifyContent: 'space-between' },
   amostra: { alignItems: 'center', gap: 6 },
   anel: { borderWidth: 2, borderRadius: 999, padding: 3 },
+  anelDaEscolha: { borderWidth: 2, borderRadius: 999 },
   cor: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 });

@@ -62,21 +62,23 @@ describe('18 · Marco liberado', () => {
     expect(screen.getByText('Próximo: Primeiro feat')).toBeTruthy();
   });
 
-  it('resgatar chama a rota, vibra com sucesso e fecha', async () => {
+  it('resgatar chama a rota, vibra com sucesso, celebra e só então fecha', async () => {
     const marcos = atoComMarco2Liberado(false);
     simular(marcos);
     await renderizarTela(<TelaMarco id={marcos[1]!.id} />);
 
     await fireEvent.press(await screen.findByRole('button', { name: 'Resgatar recompensas' }));
-    await waitFor(() => expect(router.back).toHaveBeenCalled());
+    // A confirmação aparece na hora, com a vibração, e a tela segue aberta durante a celebração.
+    expect(await screen.findByText('Recompensas resgatadas')).toBeTruthy();
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
+    expect(screen.queryByRole('button', { name: 'Resgatar recompensas' })).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1), { timeout: 3000 });
     expect(chamadas).toContainEqual({
       metodo: 'POST',
       rota: `/marcos/${marcos[1]!.id}/resgatar`,
       corpo: undefined,
     });
-    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
-    // A mutação termina e o botão volta ao rótulo normal (o modal real já fechou).
-    await screen.findByRole('button', { name: 'Resgatar recompensas' });
   });
 
   it('já resgatado mostra o aviso e um botão para fechar', async () => {

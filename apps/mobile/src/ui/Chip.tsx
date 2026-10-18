@@ -1,10 +1,15 @@
 import type { NomeCor, NomeGradiente, NomeSombra } from '@holofote/tokens';
 import { Check, type LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTema } from '../tema/ProvedorTema';
 import { Camada } from './Camada';
+import { toqueDeSelecao } from './haptico';
 import { Icone } from './Icone';
+import { CURVA, DURACAO, useMovimento } from './movimento';
 import { Texto, type CorDeTexto } from './Texto';
+import { PressableAnimado, useFeedbackDoToque } from './Tocavel';
 
 export type VarianteChip =
   'linha' | 'tracejado' | 'afundado' | 'destaque' | 'suave' | 'primario' | 'elevado';
@@ -71,7 +76,7 @@ export function Chip({
   const efetiva: VarianteChip = ehEscolha ? (selecionado ? 'primario' : 'linha') : variante;
   const ap = APARENCIAS[efetiva];
   const medida = TAMANHOS[tamanho];
-  const iconeInicial = ehEscolha && selecionado ? Check : icone;
+  const feedback = useFeedbackDoToque({}, { desabilitado: false, brilho: 0.8 });
 
   // Toda variante tem borda de 1 px (transparente quando o Figma não tem) para o chip
   // não mudar de altura ao ser selecionado.
@@ -81,21 +86,28 @@ export function Chip({
     borderStyle: ap.tracejado ? 'dashed' : 'solid',
   };
 
-  const conteudo = (
+  const conteudo = ehEscolha ? (
+    <ChipDeEscolha
+      rotulo={rotulo}
+      selecionado={!!selecionado}
+      medida={medida}
+      icone={icone}
+      iconeDepois={iconeDepois}
+      sobreFundo={sobreFundo}
+    />
+  ) : (
     <Camada
       cor={efetiva === 'linha' && sobreFundo ? 'fundo' : ap.cor}
       gradiente={ap.gradiente}
       sombra={ap.sombra}
       raio={999}
       style={[
-        estilos.chip,
+        estilos.estatico,
         borda,
         { paddingHorizontal: medida.paddingHorizontal, paddingVertical: medida.paddingVertical },
       ]}
     >
-      {iconeInicial && (
-        <Icone icone={iconeInicial} tamanho={medida.icone} cor={ap.texto} traco={2} />
-      )}
+      {icone && <Icone icone={icone} tamanho={medida.icone} cor={ap.texto} traco={2} />}
       <Texto estilo="legenda" cor={ap.texto}>
         {rotulo}
       </Texto>
@@ -110,18 +122,131 @@ export function Chip({
       </View>
     );
   return (
-    <Pressable
-      onPress={onPress}
+    <PressableAnimado
+      onPress={() => {
+        if (ehEscolha) toqueDeSelecao();
+        onPress();
+      }}
+      onPressIn={feedback.onPressIn}
+      onPressOut={feedback.onPressOut}
       accessibilityRole={ehEscolha ? 'checkbox' : 'button'}
       accessibilityLabel={rotuloAcessivel ?? rotulo}
       accessibilityState={ehEscolha ? { checked: !!selecionado } : undefined}
-      style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+      style={feedback.style}
     >
       {conteudo}
-    </Pressable>
+    </PressableAnimado>
+  );
+}
+
+/**
+ * Chip de escolha: duas camadas de fundo empilhadas (linha e pílula preta) trocam de opacidade;
+ * o check abre espaço crescendo na largura (o chip cresce junto, sem pulo) e o texto troca de cor
+ * em transição. Com movimento reduzido a troca é imediata.
+ */
+function ChipDeEscolha({
+  rotulo,
+  selecionado,
+  medida,
+  icone,
+  iconeDepois,
+  sobreFundo,
+}: {
+  rotulo: string;
+  selecionado: boolean;
+  medida: (typeof TAMANHOS)[keyof typeof TAMANHOS];
+  icone?: LucideIcon;
+  iconeDepois?: LucideIcon;
+  sobreFundo?: boolean;
+}) {
+  const { cores } = useTema();
+  const { reduzido } = useMovimento();
+  const mistura = useSharedValue(selecionado ? 1 : 0);
+  useEffect(() => {
+    const alvo = selecionado ? 1 : 0;
+    mistura.value = reduzido
+      ? alvo
+      : withTiming(alvo, { duration: DURACAO.rapida, easing: CURVA.saida });
+  }, [selecionado, reduzido, mistura]);
+
+  const camadaLinha = useAnimatedStyle(() => ({ opacity: 1 - mistura.value }));
+  const camadaPrimaria = useAnimatedStyle(() => ({ opacity: mistura.value }));
+  const verificar = useAnimatedStyle(() => ({ opacity: mistura.value }));
+  // Sem ícone próprio, o check ocupa uma casa que abre (largura 0 até ícone + espaço).
+  const casa = useAnimatedStyle(() => ({
+    width: (medida.icone + 6) * mistura.value,
+    opacity: mistura.value,
+  }));
+  const original = useAnimatedStyle(() => ({ opacity: 1 - mistura.value }));
+
+  return (
+    <View style={estilos.chip}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, camadaLinha]}>
+        <Camada
+          cor={sobreFundo ? 'fundo' : 'superficie'}
+          raio={999}
+          style={[
+            StyleSheet.absoluteFill,
+            { borderWidth: 1, borderColor: cores.linha, borderStyle: 'solid' },
+          ]}
+        />
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, camadaPrimaria]}>
+        <Camada
+          gradiente="pilulaPreta"
+          sombra="esfera"
+          raio={999}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+      <View
+        style={[
+          estilos.linha,
+          {
+            borderWidth: 1,
+            borderColor: 'transparent',
+            paddingHorizontal: medida.paddingHorizontal,
+            paddingVertical: medida.paddingVertical,
+          },
+        ]}
+      >
+        {icone ? (
+          <View style={[estilos.casaFixa, { width: medida.icone, height: medida.icone }]}>
+            <Animated.View style={[StyleSheet.absoluteFill, original]}>
+              <Icone icone={icone} tamanho={medida.icone} cor="texto" traco={2} />
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, verificar]}>
+              <Icone icone={Check} tamanho={medida.icone} cor="primarioTexto" traco={2} />
+            </Animated.View>
+          </View>
+        ) : (
+          <Animated.View style={[estilos.casa, casa]}>
+            <Icone icone={Check} tamanho={medida.icone} cor="primarioTexto" traco={2} />
+          </Animated.View>
+        )}
+        <Texto estilo="legenda" cor={selecionado ? 'primarioTexto' : 'texto'} transicao>
+          {rotulo}
+        </Texto>
+        {iconeDepois && (
+          <View style={estilos.depois}>
+            <Icone
+              icone={iconeDepois}
+              tamanho={12}
+              cor={selecionado ? 'primarioTexto' : 'texto'}
+              traco={2}
+            />
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  chip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6 },
+  chip: { alignSelf: 'flex-start' },
+  estatico: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6 },
+  linha: { flexDirection: 'row', alignItems: 'center' },
+  casa: { overflow: 'hidden' },
+  casaFixa: { marginRight: 6 },
+  depois: { marginLeft: 6 },
 });

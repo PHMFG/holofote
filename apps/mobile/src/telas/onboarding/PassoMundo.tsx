@@ -1,10 +1,12 @@
 import { Plus } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Avatar } from '../../ui/Avatar';
 import { CampoTexto } from '../../ui/CampoTexto';
 import { Cartao } from '../../ui/Cartao';
 import { Chip } from '../../ui/Chip';
 import { Texto } from '../../ui/Texto';
+import { useAnimacoes } from '../animacao/animacoes';
 import { ControleDeslizante } from './ControleDeslizante';
 import {
   UNIVERSOS,
@@ -20,8 +22,12 @@ export interface PassoMundoProps {
   onMudar: (parcial: Partial<FormMundo>) => void;
 }
 
-/** Passo 2 (Figma 14:3): persona, universo e tom do mundo. */
+/**
+ * Passo 2 (Figma 14:3): persona, universo e tom do mundo. O campo do universo livre abre e fecha
+ * com fade e o bloco do tom, embaixo, acompanha com animação de layout.
+ */
 export function PassoMundo({ form, onMudar }: PassoMundoProps) {
+  const animacoes = useAnimacoes();
   const handle = normalizarHandle(form.handle);
   const linhaPersona = [handle, form.descricao.trim()].filter(Boolean).join(' · ');
 
@@ -87,7 +93,7 @@ export function PassoMundo({ form, onMudar }: PassoMundoProps) {
         />
       </View>
 
-      <View style={estilos.grupo}>
+      <Animated.View layout={animacoes.layout} style={estilos.grupo}>
         <RotuloGrupo texto="Universo" />
         <View style={estilos.chips}>
           {UNIVERSOS.map((universo) => (
@@ -117,19 +123,21 @@ export function PassoMundo({ form, onMudar }: PassoMundoProps) {
           )}
         </View>
         {form.livre && (
-          <CampoTexto
-            rotulo="Descreva o universo"
-            testID="campo-universo"
-            value={form.universoLivre}
-            onChangeText={(universoLivre) => onMudar({ universoLivre })}
-            placeholder="banda de forró em turnê pelo interior"
-            limite={80}
-            autoFocus
-          />
+          <Animated.View entering={animacoes.entrada()} exiting={animacoes.saidaSuave}>
+            <CampoTexto
+              rotulo="Descreva o universo"
+              testID="campo-universo"
+              value={form.universoLivre}
+              onChangeText={(universoLivre) => onMudar({ universoLivre })}
+              placeholder="banda de forró em turnê pelo interior"
+              limite={80}
+              autoFocus
+            />
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
 
-      <View style={estilos.grupoTom}>
+      <Animated.View layout={animacoes.layout} style={estilos.grupoTom}>
         <View style={estilos.linhaTom}>
           <RotuloGrupo texto="Tom do mundo" />
           <Texto estilo="legenda" cor="destaqueTinta">
@@ -150,7 +158,7 @@ export function PassoMundo({ form, onMudar }: PassoMundoProps) {
             Caótico
           </Texto>
         </View>
-      </View>
+      </Animated.View>
     </>
   );
 }

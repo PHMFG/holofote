@@ -10,11 +10,13 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useTema } from '../../tema/ProvedorTema';
 import { Avatar } from '../../ui/Avatar';
 import { Esfera, corSobreEsfera } from '../../ui/Esfera';
 import { Icone } from '../../ui/Icone';
 import { Texto } from '../../ui/Texto';
+import { useAnimacoes } from '../animacao/animacoes';
 
 type TipoAlerta = Alerta['tipo'];
 
@@ -54,6 +56,7 @@ export interface LinhaAlertaProps {
  */
 export function LinhaAlerta({ alerta, tempo, separador = true, onPress }: LinhaAlertaProps) {
   const { cores } = useTema();
+  const animacoes = useAnimacoes();
   const { personagem } = alerta;
   // O texto vem pronto do servidor; quando começa pelo nome do personagem, o nome vai em negrito.
   const nome = personagem && alerta.texto.startsWith(personagem.nome) ? personagem.nome : null;
@@ -99,7 +102,13 @@ export function LinhaAlerta({ alerta, tempo, separador = true, onPress }: LinhaA
         <Texto estilo="legenda" cor="textoSuave">
           {tempo}
         </Texto>
-        {!alerta.lido && <View style={[estilos.ponto, { backgroundColor: cores.destaque }]} />}
+        {/* Lido o alerta, o ponto de não lido encolhe e some com fade. */}
+        {!alerta.lido && (
+          <Animated.View
+            exiting={animacoes.popSaida}
+            style={[estilos.ponto, { backgroundColor: cores.destaque }]}
+          />
+        )}
       </View>
     </Pressable>
   );

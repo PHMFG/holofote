@@ -1,10 +1,10 @@
-import { Heart, MessageCircle, Repeat, type LucideIcon } from 'lucide-react-native';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { formatarNumero } from '../formatar';
+import { Heart, MessageCircle, Repeat } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/ProvedorTema';
+import { Aparecer } from './Aparecer';
 import { Avatar } from './Avatar';
+import { ContadorDeAcao } from './ContadorDeAcao';
 import type { TomEsfera } from './Esfera';
-import { Icone } from './Icone';
 import { PontosDigitando } from './PontosDigitando';
 import { Rotulo } from './Rotulo';
 import { Texto } from './Texto';
@@ -59,12 +59,29 @@ export function Comentario(p: ComentarioProps) {
         <Texto accessible={false}>{p.texto}</Texto>
         <View style={estilos.acoes}>
           {!aninhado && p.respostas !== undefined && (
-            <Acao icone={MessageCircle} valor={p.respostas} rotulo="respostas" />
+            <ContadorDeAcao
+              icone={MessageCircle}
+              tamanhoIcone={14}
+              traco={2}
+              espaco={5}
+              valor={p.respostas}
+              rotulo="respostas"
+            />
           )}
           {!aninhado && p.reposts !== undefined && (
-            <Acao icone={Repeat} valor={p.reposts} rotulo="reposts" />
+            <ContadorDeAcao
+              icone={Repeat}
+              tamanhoIcone={14}
+              traco={2}
+              espaco={5}
+              valor={p.reposts}
+              rotulo="reposts"
+            />
           )}
-          <Acao
+          <ContadorDeAcao
+            tamanhoIcone={14}
+            traco={2}
+            espaco={5}
             icone={Heart}
             valor={p.curtidas}
             rotulo="curtidas"
@@ -72,7 +89,7 @@ export function Comentario(p: ComentarioProps) {
             onPress={p.onCurtir}
           />
           {!aninhado && p.onResponder && (
-            <Pressable
+            <Tocavel
               onPress={p.onResponder}
               accessibilityRole="button"
               accessibilityLabel={`Responder a ${p.nome}`}
@@ -81,36 +98,11 @@ export function Comentario(p: ComentarioProps) {
               <Texto estilo="legenda" cor="destaqueTinta">
                 Responder
               </Texto>
-            </Pressable>
+            </Tocavel>
           )}
         </View>
       </View>
     </View>
-  );
-}
-
-function Acao(p: {
-  icone: LucideIcon;
-  valor: number;
-  rotulo: string;
-  ativo?: boolean;
-  onPress?: () => void;
-}) {
-  const cor = p.ativo ? 'destaqueTinta' : 'textoSuave';
-  return (
-    <Tocavel
-      onPress={p.onPress}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={`${formatarNumero(p.valor)} ${p.rotulo}`}
-      accessibilityState={{ selected: !!p.ativo }}
-      style={estilos.acao}
-    >
-      <Icone icone={p.icone} tamanho={14} cor={cor} traco={2} />
-      <Texto estilo="legenda" cor={cor}>
-        {formatarNumero(p.valor)}
-      </Texto>
-    </Tocavel>
   );
 }
 
@@ -135,15 +127,17 @@ export function VerMaisRespostas({
 export function Digitando({ nome, iniciais }: { nome: string; iniciais: string }) {
   const { cores } = useTema();
   return (
-    <View style={estilos.digitando} accessible accessibilityLabel={`${nome} está digitando`}>
-      <Avatar iniciais={iniciais} tamanho={28} />
-      <View style={[estilos.bolha, { backgroundColor: cores.superficie2 }]}>
-        <PontosDigitando />
+    <Aparecer modo="fade">
+      <View style={estilos.digitando} accessible accessibilityLabel={`${nome} está digitando`}>
+        <Avatar iniciais={iniciais} tamanho={28} />
+        <View style={[estilos.bolha, { backgroundColor: cores.superficie2 }]}>
+          <PontosDigitando />
+        </View>
+        <Texto estilo="legenda" cor="textoSuave">
+          {nome} está digitando
+        </Texto>
       </View>
-      <Texto estilo="legenda" cor="textoSuave">
-        {nome} está digitando
-      </Texto>
-    </View>
+    </Aparecer>
   );
 }
 
@@ -160,7 +154,6 @@ const estilos = StyleSheet.create({
   cabecalho: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nome: { flexShrink: 1 },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 4 },
-  acao: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   verMais: { marginLeft: 46 },
   digitando: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bolha: {

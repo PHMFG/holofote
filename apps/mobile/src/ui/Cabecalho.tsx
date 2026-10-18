@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Aparecer } from './Aparecer';
 import { BotaoSuave } from './BotaoSuave';
 import { Texto } from './Texto';
 
@@ -15,7 +16,7 @@ export interface CabecalhoProps {
   variante?: 'suave' | 'elevado';
 }
 
-/** Cabeçalho das telas de pilha e modais: botão suave, título e ações à direita. */
+/** Cabeçalho das telas de pilha e modais: botão suave, título (que entra suave) e ações à direita. */
 export function Cabecalho({ titulo, navegacao = 'voltar', direita, variante }: CabecalhoProps) {
   return (
     <View style={estilos.linha}>
@@ -28,9 +29,13 @@ export function Cabecalho({ titulo, navegacao = 'voltar', direita, variante }: C
         />
       )}
       {titulo ? (
-        <Texto estilo="secao" accessibilityRole="header" numberOfLines={1} style={estilos.titulo}>
-          {titulo}
-        </Texto>
+        // O título entra com fade e leve subida, um instante depois do botão; se o texto mudar,
+        // o novo entra de novo (a chave é o próprio título).
+        <Aparecer key={titulo} atraso={60} style={estilos.titulo}>
+          <Texto estilo="secao" accessibilityRole="header" numberOfLines={1}>
+            {titulo}
+          </Texto>
+        </Aparecer>
       ) : (
         <View style={estilos.titulo} />
       )}

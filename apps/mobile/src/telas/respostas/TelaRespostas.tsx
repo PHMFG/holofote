@@ -1,22 +1,30 @@
 import type { PersonagemResumo, Post } from '@holofote/shared';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useCurtir, useMundo, useResponder, useThread } from '../../api/consultas';
 import { useDigitando } from '../../api/tempoReal';
 import { primeiroNome } from '../../formatar';
 import { horaCurta, tempoRelativo, useAgora } from '../../tempo';
+import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Comentario, Digitando, SeparadorComentario, VerMaisRespostas } from '../../ui/Comentario';
+import { Comentario, SeparadorComentario, VerMaisRespostas } from '../../ui/Comentario';
 import { Compositor } from '../../ui/Compositor';
 import { EstadoTela } from '../../ui/EstadoTela';
 import { Segmentado } from '../../ui/Segmentado';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { useAnimacoes } from '../animacao/animacoes';
+import { CartaoAnimado } from '../animacao/Animados';
+import { BrilhoDeCurtida } from '../animacao/BrilhoDeCurtida';
+import { ItemAnimado, useRegistroDeEntradas, type RegistroDeEntradas } from '../animacao/entradas';
+import { LinhaDigitando } from '../animacao/LinhaDigitando';
+import { TrocaSuave } from '../animacao/TrocaSuave';
 import { TecladoEvitavel } from '../dm/TecladoEvitavel';
 import { filtrarThread, montarArvore, type FiltroThread, type NoThread } from './arvore';
 
@@ -35,7 +43,19 @@ interface Alvo {
   handle: string;
 }
 
-/** 13 · Respostas: a conversa embaixo de um post, com respostas que chegam aos poucos. */
+/** Ids na ordem em que a conversa os mostra (as respostas recolhidas não contam). */
+function idsExibidos(nos: readonly NoThread[], abertos: ReadonlySet<string>): string[] {
+  return nos.flatMap((no) => {
+    const filhas = abertos.has(no.resposta.id) ? no.filhas : no.filhas.slice(0, 1);
+    return [no.resposta.id, ...filhas.map((f) => f.id)];
+  });
+}
+
+/**
+ * 13 · Respostas: a conversa embaixo de um post, com respostas que chegam aos poucos. A primeira
+ * carga entra em cascata; resposta nova entra deslizando; trocar o filtro reordena os blocos
+ * com animação de layout; quem está digitando mostra os pontinhos em onda.
+ */
 export function TelaRespostas({ postId }: { postId: string }) {
   const thread = useThread(postId);
   const mundo = useMundo();
@@ -55,6 +75,9 @@ export function TelaRespostas({ postId }: { postId: string }) {
   );
   const arvore = useMemo(() => montarArvore(postId, respostas ?? []), [postId, respostas]);
   const visiveis = useMemo(() => filtrarThread(arvore, filtro), [arvore, filtro]);
+  const animacoes = useAnimacoes();
+  const idsDaConversa = useMemo(() => idsExibidos(visiveis, abertos), [visiveis, abertos]);
+  const entradas = useRegistroDeEntradas(idsDaConversa, { novos: 'qualquer', cascataInicial: 6 });
 
   // Quem está escrevendo no post ou numa resposta dele; o aviso do servidor some sozinho.
   const digitando = useMemo(() => {
@@ -88,13 +111,15 @@ export function TelaRespostas({ postId }: { postId: string }) {
       titulo="Respostas"
       direita={
         total !== undefined && (
-          <Texto
-            estilo="legenda"
-            cor="textoSuave"
-            accessibilityLabel={`${total} ${total === 1 ? 'resposta' : 'respostas'}`}
-          >
-            {total}
-          </Texto>
+          <TrocaSuave chave={total}>
+            <Texto
+              estilo="legenda"
+              cor="textoSuave"
+              accessibilityLabel={`${total} ${total === 1 ? 'resposta' : 'respostas'}`}
+            >
+              {total}
+            </Texto>
+          </TrocaSuave>
         )
       }
     />
@@ -138,42 +163,63 @@ export function TelaRespostas({ postId }: { postId: string }) {
           />
         }
       >
-        <PostOriginal post={post} tempo={horaCurta(post.criadoEm, agora, diaAtual)} />
-        <Segmentado
-          opcoes={FILTROS}
-          valor={filtro}
-          onMudar={setFiltro}
-          rotulo="Ordenar respostas"
-        />
-        <Cartao style={estilos.conversa}>
-          {visiveis.length === 0 && (
-            <Texto cor="textoSuave" style={estilos.vazio}>
-              {filtro === 'elenco'
-                ? 'Ninguém do elenco respondeu ainda.'
-                : 'Ninguém respondeu ainda. As respostas chegam aos poucos.'}
-            </Texto>
-          )}
-          {visiveis.map((no, i) => (
-            <Fragment key={no.resposta.id}>
-              {i > 0 && <SeparadorComentario />}
-              <BlocoDeResposta
-                no={no}
-                aberto={abertos.has(no.resposta.id)}
-                diaAtual={diaAtual}
-                agora={agora}
-                onAbrir={() => setAbertos((atual) => new Set(atual).add(no.resposta.id))}
-                onCurtir={(id) => curtir.mutate(id, { onError: tratarErroDeAcao })}
-                onResponder={(r) => setAlvo({ id: r.id, handle: r.autor.handle })}
+        <Aparecer indice={0}>
+          <PostOriginal post={post} tempo={horaCurta(post.criadoEm, agora, diaAtual)} />
+        </Aparecer>
+        <Aparecer indice={1}>
+          <Segmentado
+            opcoes={FILTROS}
+            valor={filtro}
+            onMudar={setFiltro}
+            rotulo="Ordenar respostas"
+          />
+        </Aparecer>
+        <Aparecer indice={2}>
+          <CartaoAnimado layout={animacoes.layout} style={estilos.conversa}>
+            {visiveis.length === 0 && (
+              <Animated.View
+                key={`vazio-${filtro}`}
+                entering={animacoes.fade()}
+                exiting={animacoes.saida}
+              >
+                <Texto cor="textoSuave" style={estilos.vazio}>
+                  {filtro === 'elenco'
+                    ? 'Ninguém do elenco respondeu ainda.'
+                    : 'Ninguém respondeu ainda. As respostas chegam aos poucos.'}
+                </Texto>
+              </Animated.View>
+            )}
+            {visiveis.map((no, i) => (
+              <ItemAnimado
+                key={no.resposta.id}
+                registro={entradas}
+                id={no.resposta.id}
+                style={estilos.bloco}
+                fadePadrao
+              >
+                {i > 0 && <SeparadorComentario />}
+                <BlocoDeResposta
+                  no={no}
+                  aberto={abertos.has(no.resposta.id)}
+                  diaAtual={diaAtual}
+                  agora={agora}
+                  entradas={entradas}
+                  onAbrir={() => setAbertos((atual) => new Set(atual).add(no.resposta.id))}
+                  onCurtir={(id) => curtir.mutate(id, { onError: tratarErroDeAcao })}
+                  onResponder={(r) => setAlvo({ id: r.id, handle: r.autor.handle })}
+                />
+              </ItemAnimado>
+            ))}
+            {digitando.map((p, i) => (
+              <LinhaDigitando
+                key={p.id}
+                nome={p.nome}
+                iniciais={p.iniciais}
+                separador={visiveis.length > 0 || i > 0}
               />
-            </Fragment>
-          ))}
-          {digitando.map((p, i) => (
-            <Fragment key={p.id}>
-              {(visiveis.length > 0 || i > 0) && <SeparadorComentario />}
-              <Digitando nome={p.nome} iniciais={p.iniciais} />
-            </Fragment>
-          ))}
-        </Cartao>
+            ))}
+          </CartaoAnimado>
+        </Aparecer>
       </Tela>
     </TecladoEvitavel>
   );
@@ -208,6 +254,7 @@ interface BlocoProps {
   aberto: boolean;
   diaAtual: number | undefined;
   agora: number;
+  entradas: RegistroDeEntradas;
   onAbrir: () => void;
   onCurtir: (id: string) => void;
   onResponder: (resposta: Post) => void;
@@ -219,10 +266,12 @@ function BlocoDeResposta({
   aberto,
   diaAtual,
   agora,
+  entradas,
   onAbrir,
   onCurtir,
   onResponder,
 }: BlocoProps) {
+  const animacoes = useAnimacoes();
   const filhas = aberto ? no.filhas : no.filhas.slice(0, 1);
   const escondidas = no.filhas.length - filhas.length;
   return (
@@ -235,19 +284,24 @@ function BlocoDeResposta({
         onResponder={() => onResponder(no.resposta)}
       />
       {filhas.length > 0 && (
-        <View style={estilos.aninhados}>
+        <Animated.View layout={animacoes.layout} style={estilos.aninhados}>
           {filhas.map((filha) => (
-            <ComentarioDaThread
-              key={filha.id}
-              post={filha}
-              aninhado
-              diaAtual={diaAtual}
-              agora={agora}
-              onCurtir={onCurtir}
-            />
+            <ItemAnimado key={filha.id} registro={entradas} id={filha.id} fadePadrao>
+              <ComentarioDaThread
+                post={filha}
+                aninhado
+                diaAtual={diaAtual}
+                agora={agora}
+                onCurtir={onCurtir}
+              />
+            </ItemAnimado>
           ))}
-          {escondidas > 0 && <VerMaisRespostas quantidade={escondidas} onPress={onAbrir} />}
-        </View>
+          {escondidas > 0 && (
+            <Animated.View exiting={animacoes.saida} layout={animacoes.layout}>
+              <VerMaisRespostas quantidade={escondidas} onPress={onAbrir} />
+            </Animated.View>
+          )}
+        </Animated.View>
       )}
     </>
   );
@@ -264,7 +318,8 @@ interface ComentarioDaThreadProps {
 
 /**
  * Comentario com o avatar tocável para abrir o perfil do autor. O componente não tem ação no
- * autor, então um botão transparente fica por cima do avatar (mesma posição e tamanho).
+ * autor, então um botão transparente fica por cima do avatar (mesma posição e tamanho). Curtir
+ * solta o brilho de corações a partir do toque.
  */
 function ComentarioDaThread({
   post,
@@ -276,8 +331,13 @@ function ComentarioDaThread({
 }: ComentarioDaThreadProps) {
   const { autor } = post;
   const tamanho = aninhado ? 28 : 36;
+  const [brilho, setBrilho] = useState(0);
+  const aoCurtir = () => {
+    if (!post.curtidoPorMim) setBrilho((n) => n + 1);
+    onCurtir(post.id);
+  };
   return (
-    <View>
+    <BrilhoDeCurtida disparo={brilho}>
       <Comentario
         nome={autor.nome}
         iniciais={autor.iniciais}
@@ -290,7 +350,7 @@ function ComentarioDaThread({
         reposts={post.reposts > 0 ? post.reposts : undefined}
         curtido={post.curtidoPorMim}
         aninhado={aninhado}
-        onCurtir={() => onCurtir(post.id)}
+        onCurtir={aoCurtir}
         onResponder={onResponder}
       />
       <Pressable
@@ -303,7 +363,7 @@ function ComentarioDaThread({
           { left: aninhado ? 46 : 0, width: tamanho, height: tamanho, borderRadius: tamanho / 2 },
         ]}
       />
-    </View>
+    </BrilhoDeCurtida>
   );
 }
 
@@ -311,6 +371,7 @@ const estilos = StyleSheet.create({
   original: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   originalTexto: { flex: 1, gap: 2 },
   conversa: { padding: 14, gap: 12 },
+  bloco: { gap: 12 },
   aninhados: { gap: 8 },
   vazio: { textAlign: 'center', paddingVertical: 8 },
   autor: { position: 'absolute', top: 0 },

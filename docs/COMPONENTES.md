@@ -228,3 +228,50 @@ Arquivo `z4hwlJgPHTikSzQ9yfjAI9`, página "Telas v2 · Cromo". Levantamento só 
 5. **Estados**: ligado / desligado. Não há desativado desenhado.
 6. **Ícones**: nenhum.
 7. **Atenção**: o interruptor está achatado em vetor no Figma (a exportação vira uma imagem só; os filhos não aparecem no `get_metadata`, a bola é `28:541`/`28:551`). O trilho corta o conteúdo (`clip`), então a sombra grande da bola (0/6/14) fica recortada dentro da pílula, não vaza para fora.
+
+---
+
+## Movimento
+
+O Figma não desenha movimento; esta seção é a referência do código (F9). Tudo vem de `apps/mobile/src/ui/movimento.ts`.
+
+**Vocabulário**
+
+- Durações (`DURACAO`): instante 120 ms (toque, saídas), rápida 200 ms (estados, trocas de cor), média 320 ms (entradas), lenta 520 ms (primeira exibição de uma barra).
+- Curvas (`CURVA`): `saida` desacelera (entradas), `entradaSaida` (deslocamentos longos), `enfase` (enchimentos e destaques).
+- Molas (`MOLA`): `firme` (toque e trocas de estado), `suave` (entradas, folha), `viva` (pop de curtir, selo de novidade, botão de enviar), `deslizante` (indicadores que correm num trilho: segmentado e abas; não passa do fim).
+- Escalas: `ESCALA_TOQUE` 0,96 em botões, chips, esferas e abas; `ESCALA_TOQUE_LEVE` 0,985 em blocos largos (linhas de lista, opções de folha, texto do post), onde 0,96 balançaria demais.
+- Cascata: `atrasoDaCascata(indice)`, 40 ms por item, até 8 itens.
+
+**Regras**
+
+1. Todo tocável usa `Tocavel`, ou `PressableAnimado` com `useFeedbackDoToque`: encolhe e perde brilho na mola `firme` ao toque e volta com a mesma mola, sem atraso. O estado pressionado não chega mais ao `style` em função (o feedback roda no thread de UI).
+2. Animação roda no thread de UI (valores compartilhados, `useAnimatedStyle`, transições CSS do Reanimated e animações de entrada e saída). Nada de `setState` por quadro; um `setState` só no fim de uma troca, quando preciso (tema).
+3. Todo componente animado lê `useMovimento()`. Com "Reduzir animações" (app) ou Reduzir Movimento (iOS) ligado: nada de escala nem deslocamento; a troca é imediata ou um fade curto, e laços infinitos (brilho do esqueleto, pontos de digitando) ficam parados.
+4. Lista longa não anima de novo ao rolar: `Aparecer` só anima a cascata inicial (até 8 itens) e itens novos. Passe `chave` (id do item) para o item não animar de novo quando a lista o remonta.
+5. Cor que muda com o estado: `Texto transicao` (transição CSS) e `IconeAlternado` (crossfade de dois ícones). Número que muda: `NumeroAnimado` (rola na vertical).
+6. Hápticos de seleção (`toqueDeSelecao`) só em troca de estado: interruptor, segmentado, chip de escolha, aba. Sucesso e erro de ações ficam com a tela.
+7. Cores, sombras e curvas sempre dos tokens e do vocabulário; nada de hex ou valor solto.
+
+**Por componente**
+
+| Componente                                                    | Gatilho                         | Movimento                                                                                                    |
+| ------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Tocavel, BotaoSuave, Esfera tocável, OpcaoFolha, LinhaDeLista | dedo                            | escala 0,96 (0,985 em largos) e brilho, mola `firme`                                                         |
+| BotaoMetal                                                    | dedo / desabilitar              | escala 0,96 e véu escuro de 22 %; desabilitado esmaece em 200 ms                                             |
+| Chip de escolha                                               | selecionar                      | fundo em crossfade 200 ms, check abre espaço (largura), texto muda de cor, háptico                           |
+| Segmentado                                                    | trocar opção                    | indicador desliza (`deslizante`), texto e ícone mudam de cor em 200 ms, háptico                              |
+| Interruptor                                                   | alternar                        | bola desliza (`firme`) e cresce sob o dedo, trilho em crossfade, háptico                                     |
+| BarraProgresso                                                | mudança de valor                | enche de 0 na primeira exibição (520 ms, `enfase`), depois 320 ms; passos crescem em mola `suave`            |
+| IndicadoresConta                                              | número muda                     | número rola 200 ms; energia pulsa (1,08, `viva`)                                                             |
+| ContadorDeAcao (Post, Comentario)                             | curtir                          | pop do ícone (1,3, `viva`), cor em fade, número rola                                                         |
+| BarraDeAbas                                                   | trocar aba                      | esfera desliza (`deslizante`), ícones em crossfade e 1,1 na ativa, ponto de novidade com pop                 |
+| Folha                                                         | abrir / arrastar                | sobe na mola `suave`; arrastar para baixo fecha (90 pt ou 800 pt/s), senão volta em `firme`                  |
+| Compositor                                                    | texto digitado                  | botão de enviar cresce de 0,84 a 1 com pop (`viva`); contexto entra em fade                                  |
+| CampoTexto                                                    | foco / erro                     | aro de destaque em fade 200 ms; erro entra em fade com subida                                                |
+| EstadoTela                                                    | carregando / erro / vazio       | carregando é esqueleto com brilho (1,4 s em laço); erro e vazio entram com `Aparecer`                        |
+| Cabecalho                                                     | montar                          | título entra com fade e subida, 60 ms depois do botão                                                        |
+| PontosDigitando                                               | sempre                          | onda em laço de 1,1 s, defasada entre os pontos                                                              |
+| ProvedorTema                                                  | trocar claro/escuro ou destaque | conteúdo some em 120 ms, tema novo entra, conteúdo volta em 200 ms, fundo passa de uma cor à outra em 320 ms |
+
+**Navegação** (`app/_layout.tsx` e `app/(abas)/_layout.tsx`): push e pop com a transição nativa do iOS; modais de tela cheia sobem de baixo; história e ao vivo entram em fade; a folha "Sem energia" é modal transparente com fade nativo e a `Folha` sobe na mola; troca de aba em fade de 200 ms; toda cena tem o fundo do tema.

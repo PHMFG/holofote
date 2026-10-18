@@ -18,8 +18,8 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useConta, useMundo, useRecarga, useRegistro, useRelacoes } from '../../api/consultas';
 import { formatarNumero } from '../../formatar';
+import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
-import { BarraProgresso } from '../../ui/BarraProgresso';
 import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Cartao } from '../../ui/Cartao';
 import { Esfera } from '../../ui/Esfera';
@@ -27,12 +27,16 @@ import { EstadoTela } from '../../ui/EstadoTela';
 import { Icone } from '../../ui/Icone';
 import { IndicadoresConta } from '../../ui/IndicadoresConta';
 import { LinhaDeLista } from '../../ui/LinhaDeLista';
+import { atrasoDaCascata } from '../../ui/movimento';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
 import { comArroba } from '../registro/formatar';
 import { useAgora } from '../../tempo';
 import { Capa } from './Capa';
+import { BarraAnimada, ItemFluido } from './efeitos';
+import { NumeroContando } from './NumeroContando';
+import { TelaComCapa } from './TelaComCapa';
 import { useRecomecarMundo } from './recomecar';
 import { SetaVariacao, rotuloVariacao } from './SetaVariacao';
 import { relacoesPrincipais, variacaoDeHoje } from './variacao';
@@ -98,7 +102,7 @@ export function TelaPerfil() {
     );
 
   return (
-    <Tela comAbas gap={12}>
+    <TelaComCapa comAbas gap={12}>
       <Capa
         acoes={
           <View style={estilos.acoesCapa}>
@@ -123,59 +127,79 @@ export function TelaPerfil() {
         }
       />
 
-      <View style={estilos.identidade}>
-        <Texto estilo="titulo" accessibilityRole="header">
-          {jogador.nome}
-        </Texto>
-        <Texto cor="textoSuave">
-          {comArroba(jogador.handle)} · {mundo.data.universo}
-        </Texto>
-      </View>
-      {jogador.ficha ? <Texto>{jogador.ficha}</Texto> : null}
-      <View style={estilos.numeros} accessible>
-        <Texto estilo="corpoForte">{formatarNumero(jogador.seguidores)}</Texto>
-        <Texto cor="textoSuave">{jogador.seguidores === 1 ? 'seguidor' : 'seguidores'}</Texto>
-      </View>
-
-      <Cartao style={estilos.presenca}>
-        <View style={estilos.linhaEntre}>
-          <Texto estilo="secao" accessibilityRole="header">
-            Presença
+      <Aparecer indice={0}>
+        <View style={estilos.identidade}>
+          <Texto estilo="titulo" accessibilityRole="header">
+            {jogador.nome}
           </Texto>
-          {variacao && (
-            <Texto estilo="legenda" cor="textoSuave">
-              variação de hoje
-            </Texto>
-          )}
+          <Texto cor="textoSuave">
+            {comArroba(jogador.handle)} · {mundo.data.universo}
+          </Texto>
         </View>
-        {ATRIBUTOS.map(({ chave, nome, icone, tamanho }) => {
-          const valor = jogador[chave];
-          const hoje = variacao?.get(chave) ?? 0;
-          return (
-            <View key={chave} style={estilos.atributo}>
-              <View
-                style={estilos.linhaEntre}
-                accessible
-                accessibilityLabel={[`${nome} ${valor}%`, variacao && rotuloVariacao(hoje)]
-                  .filter(Boolean)
-                  .join(', ')}
-              >
-                <View style={estilos.nomeAtributo}>
-                  <Icone icone={icone} tamanho={tamanho} cor="texto" />
-                  <Texto>{nome}</Texto>
-                </View>
-                <View style={estilos.valorAtributo}>
-                  {variacao && <SetaVariacao valor={hoje} />}
-                  <Texto estilo="corpoForte">{valor}%</Texto>
-                </View>
-              </View>
-              <BarraProgresso valor={valor / 100} rotulo={nome} />
-            </View>
-          );
-        })}
-      </Cartao>
+      </Aparecer>
+      {jogador.ficha ? (
+        <Aparecer indice={1}>
+          <Texto>{jogador.ficha}</Texto>
+        </Aparecer>
+      ) : null}
+      <Aparecer indice={2}>
+        <View
+          style={estilos.numeros}
+          accessible
+          accessibilityLabel={`${formatarNumero(jogador.seguidores)} ${
+            jogador.seguidores === 1 ? 'seguidor' : 'seguidores'
+          }`}
+        >
+          <NumeroContando
+            estilo="corpoForte"
+            texto={formatarNumero(jogador.seguidores)}
+            atraso={200}
+          />
+          <Texto cor="textoSuave">{jogador.seguidores === 1 ? 'seguidor' : 'seguidores'}</Texto>
+        </View>
+      </Aparecer>
 
-      <View style={[estilos.linhaEntre, estilos.tituloSecao]}>
+      <Aparecer indice={3}>
+        <Cartao style={estilos.presenca}>
+          <View style={estilos.linhaEntre}>
+            <Texto estilo="secao" accessibilityRole="header">
+              Presença
+            </Texto>
+            {variacao && (
+              <Texto estilo="legenda" cor="textoSuave">
+                variação de hoje
+              </Texto>
+            )}
+          </View>
+          {ATRIBUTOS.map(({ chave, nome, icone, tamanho }, i) => {
+            const valor = jogador[chave];
+            const hoje = variacao?.get(chave) ?? 0;
+            return (
+              <View key={chave} style={estilos.atributo}>
+                <View
+                  style={estilos.linhaEntre}
+                  accessible
+                  accessibilityLabel={[`${nome} ${valor}%`, variacao && rotuloVariacao(hoje)]
+                    .filter(Boolean)
+                    .join(', ')}
+                >
+                  <View style={estilos.nomeAtributo}>
+                    <Icone icone={icone} tamanho={tamanho} cor="texto" />
+                    <Texto>{nome}</Texto>
+                  </View>
+                  <View style={estilos.valorAtributo}>
+                    {variacao && <SetaVariacao valor={hoje} atraso={400 + i * 80} />}
+                    <NumeroContando estilo="corpoForte" texto={`${valor}%`} atraso={300 + i * 80} />
+                  </View>
+                </View>
+                <BarraAnimada valor={valor / 100} rotulo={nome} atraso={350 + i * 90} />
+              </View>
+            );
+          })}
+        </Cartao>
+      </Aparecer>
+
+      <Aparecer indice={4} style={[estilos.linhaEntre, estilos.tituloSecao]}>
         <Texto estilo="secao" accessibilityRole="header">
           Relações
         </Texto>
@@ -190,7 +214,7 @@ export function TelaPerfil() {
             Ver mapa
           </Texto>
         </Tocavel>
-      </View>
+      </Aparecer>
       {relacoes.isError && !relacoes.data ? (
         <EstadoTela
           tipo="erro"
@@ -198,89 +222,107 @@ export function TelaPerfil() {
           acao={{ rotulo: 'Tentar de novo', onPress: () => void relacoes.refetch() }}
         />
       ) : (
-        <Cartao lista>
-          {principais.length === 0 ? (
-            <Texto cor="textoSuave" style={estilos.semRelacoes}>
-              {relacoes.isPending
-                ? 'Carregando relações…'
-                : 'Ninguém do elenco cruzou seu caminho ainda.'}
-            </Texto>
-          ) : (
-            principais.map(({ personagem, relacao }, i) => {
-              const hoje = variacao?.get(`relacao:${personagem.id}`) ?? 0;
-              return (
-                <LinhaDeLista
-                  key={personagem.id}
-                  titulo={personagem.nome}
-                  subtitulo={relacao.rotulo}
-                  inicio={
-                    <Avatar
-                      iniciais={personagem.iniciais}
-                      tom={personagem.tomAvatar}
-                      nome={personagem.nome}
+        <Aparecer indice={5}>
+          <Cartao lista>
+            {principais.length === 0 ? (
+              <Texto cor="textoSuave" style={estilos.semRelacoes}>
+                {relacoes.isPending
+                  ? 'Carregando relações…'
+                  : 'Ninguém do elenco cruzou seu caminho ainda.'}
+              </Texto>
+            ) : (
+              principais.map(({ personagem, relacao }, i) => {
+                const hoje = variacao?.get(`relacao:${personagem.id}`) ?? 0;
+                return (
+                  <ItemFluido key={personagem.id} indice={6 + i}>
+                    <LinhaDeLista
+                      titulo={personagem.nome}
+                      subtitulo={relacao.rotulo}
+                      inicio={
+                        <Avatar
+                          iniciais={personagem.iniciais}
+                          tom={personagem.tomAvatar}
+                          nome={personagem.nome}
+                        />
+                      }
+                      fim={
+                        <View style={estilos.fimRelacao}>
+                          <NumeroContando
+                            estilo="corpoForte"
+                            texto={`${relacao.afinidade}%`}
+                            atraso={atrasoDaCascata(6 + i) + 200}
+                          />
+                          {variacao && (
+                            <SetaVariacao
+                              valor={hoje}
+                              icone={11}
+                              atraso={atrasoDaCascata(6 + i) + 350}
+                            />
+                          )}
+                        </View>
+                      }
+                      rotuloFim={[
+                        `afinidade ${relacao.afinidade}%`,
+                        variacao && rotuloVariacao(hoje),
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                      separador={i < principais.length - 1}
+                      onPress={() => router.push(`/personagem/${personagem.id}`)}
                     />
-                  }
-                  fim={
-                    <View style={estilos.fimRelacao}>
-                      <Texto estilo="corpoForte">{relacao.afinidade}%</Texto>
-                      {variacao && <SetaVariacao valor={hoje} icone={11} />}
-                    </View>
-                  }
-                  rotuloFim={[`afinidade ${relacao.afinidade}%`, variacao && rotuloVariacao(hoje)]
-                    .filter(Boolean)
-                    .join(', ')}
-                  separador={i < principais.length - 1}
-                  onPress={() => router.push(`/personagem/${personagem.id}`)}
-                />
-              );
-            })
-          )}
-        </Cartao>
+                  </ItemFluido>
+                );
+              })
+            )}
+          </Cartao>
+        </Aparecer>
       )}
 
-      <View style={estilos.tituloSecao}>
+      <Aparecer indice={7} style={estilos.tituloSecao}>
         <Texto estilo="secao" accessibilityRole="header">
           Conta
         </Texto>
-      </View>
-      <Cartao lista>
-        <LinhaConta
-          icone={Crown}
-          titulo="Holofote Plus"
-          subtitulo={
-            conta.data?.plano === 'plus'
-              ? 'Ativo: energia em dobro e sem anúncios'
-              : 'Energia em dobro e sem anúncios'
-          }
-          navega
-          onPress={() => router.push('/plus')}
-        />
-        <LinhaConta
-          icone={Zap}
-          titulo="Recarregar energia (debug)"
-          subtitulo={recarga.isPending ? 'Recarregando…' : 'Enche a barra na hora, sem custo'}
-          onPress={recarregarDebug}
-        />
-        {__DEV__ && (
+      </Aparecer>
+      <Aparecer indice={8}>
+        <Cartao lista>
           <LinhaConta
-            icone={LayoutGrid}
-            titulo="Catálogo de componentes"
-            subtitulo="Só em desenvolvimento"
+            icone={Crown}
+            titulo="Holofote Plus"
+            subtitulo={
+              conta.data?.plano === 'plus'
+                ? 'Ativo: energia em dobro e sem anúncios'
+                : 'Energia em dobro e sem anúncios'
+            }
             navega
-            onPress={() => router.push('/dev/catalogo')}
+            onPress={() => router.push('/plus')}
           />
-        )}
-        <LinhaConta
-          icone={RotateCcw}
-          titulo="Recomeçar mundo"
-          subtitulo={
-            recomecar.isPending ? 'Apagando o mundo…' : 'Apaga este mundo; energia e gemas ficam'
-          }
-          ultima
-          onPress={recomecar.isPending ? undefined : confirmarRecomecar}
-        />
-      </Cartao>
-    </Tela>
+          <LinhaConta
+            icone={Zap}
+            titulo="Recarregar energia (debug)"
+            subtitulo={recarga.isPending ? 'Recarregando…' : 'Enche a barra na hora, sem custo'}
+            onPress={recarregarDebug}
+          />
+          {__DEV__ && (
+            <LinhaConta
+              icone={LayoutGrid}
+              titulo="Catálogo de componentes"
+              subtitulo="Só em desenvolvimento"
+              navega
+              onPress={() => router.push('/dev/catalogo')}
+            />
+          )}
+          <LinhaConta
+            icone={RotateCcw}
+            titulo="Recomeçar mundo"
+            subtitulo={
+              recomecar.isPending ? 'Apagando o mundo…' : 'Apaga este mundo; energia e gemas ficam'
+            }
+            ultima
+            onPress={recomecar.isPending ? undefined : confirmarRecomecar}
+          />
+        </Cartao>
+      </Aparecer>
+    </TelaComCapa>
   );
 }
 

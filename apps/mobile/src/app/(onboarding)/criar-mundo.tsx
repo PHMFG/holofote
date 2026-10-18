@@ -2,9 +2,11 @@ import type { PedidoCriarMundo } from '@holofote/shared';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { ErroDaApi } from '../../api/cliente';
 import { useCriarMundo, useMundo } from '../../api/consultas';
 import { useTempoReal } from '../../api/tempoReal';
+import { useAnimacoes } from '../../telas/animacao/animacoes';
 import { FORM_INICIAL, montarPedido, type FormMundo } from '../../telas/onboarding/formulario';
 import { PassoConsentimento } from '../../telas/onboarding/PassoConsentimento';
 import { PassoGeracao } from '../../telas/onboarding/PassoGeracao';
@@ -14,6 +16,9 @@ import { EstadoTela } from '../../ui/EstadoTela';
 import { Tela } from '../../ui/Tela';
 
 type Passo = 'consentimento' | 'mundo' | 'gerando';
+
+/** Ordem dos passos: quem avança entra pela direita, quem volta (editar depois do erro), pela esquerda. */
+const ORDEM: Record<Passo, number> = { consentimento: 0, mundo: 1, gerando: 2 };
 
 /** Sem o tempo real (socket caindo), a tela pergunta pelo mundo nesse intervalo. */
 const INTERVALO_CONSULTA_MS = 3000;
@@ -30,8 +35,24 @@ export default function CriarMundo() {
   const [aceito, setAceito] = useState(false);
   const [form, setForm] = useState<FormMundo>(FORM_INICIAL);
   const [ultimoPedido, setUltimoPedido] = useState<PedidoCriarMundo | null>(null);
+  const animacoes = useAnimacoes();
 
   const estado = mundo.data?.estado;
+
+  // Geração em andamento ou com erro aparece mesmo ao reabrir o app; no erro, "Mudar" volta ao
+  // formulário (passo "mundo").
+  const gerando =
+    passo === 'gerando' || estado === 'criando' || (estado === 'erro' && passo !== 'mundo');
+  const passoVisivel: Passo = gerando ? 'gerando' : passo;
+  // Direção da troca de passo (0 na primeira exibição), guardada ao detectar a mudança.
+  const [troca, setTroca] = useState<{ passo: Passo; direcao: -1 | 0 | 1 }>({
+    passo: passoVisivel,
+    direcao: 0,
+  });
+  if (troca.passo !== passoVisivel) {
+    setTroca({ passo: passoVisivel, direcao: ORDEM[passoVisivel] >= ORDEM[troca.passo] ? 1 : -1 });
+  }
+
   const { refetch } = mundo;
   const semMundo = mundo.error instanceof ErroDaApi && mundo.error.codigo === 'nao_encontrado';
 
@@ -93,11 +114,6 @@ export default function CriarMundo() {
     );
   }
 
-  // Geração em andamento ou com erro aparece mesmo ao reabrir o app; no erro, "Mudar" volta ao
-  // formulário (passo "mundo").
-  const gerando =
-    passo === 'gerando' || estado === 'criando' || (estado === 'erro' && passo !== 'mundo');
-
   if (estado === 'pronto' && !gerando) {
     return (
       <Tela rolavel={false}>
@@ -138,11 +154,38 @@ export default function CriarMundo() {
     rodape = <BotaoMetal rotulo="Continuar" disabled={!aceito} onPress={() => setPasso('mundo')} />;
   }
 
+  // Os passos trocam com slide horizontal; o botão do pé só aparece com fade (o do passo anterior
+  // some na hora, sem atravessar o novo).
+  const lado = troca.direcao >= 0 ? 'direita' : 'esquerda';
+  const ladoOposto = lado === 'direita' ? 'esquerda' : 'direita';
   return (
     <KeyboardAvoidingView behavior="padding" style={estilos.flex}>
-      <Tela rodape={rodape}>{conteudo}</Tela>
+      <Tela
+        rodape={
+          rodape && (
+            <Animated.View key={chaveDoRodape(passoVisivel, estado)} entering={animacoes.entrada()}>
+              {rodape}
+            </Animated.View>
+          )
+        }
+      >
+        <Animated.View
+          key={passoVisivel}
+          entering={troca.direcao === 0 ? animacoes.entrada() : animacoes.doLado(lado)}
+          exiting={animacoes.paraOLado(ladoOposto)}
+          style={estilos.passo}
+        >
+          {conteudo}
+        </Animated.View>
+      </Tela>
     </KeyboardAvoidingView>
   );
 }
 
-const estilos = StyleSheet.create({ flex: { flex: 1 } });
+/** Botões diferentes do pé (continuar, criar, tentar de novo, entrar) têm chaves diferentes. */
+function chaveDoRodape(passo: Passo, estado: string | undefined): string {
+  return passo === 'gerando' ? `gerando-${estado ?? 'criando'}` : passo;
+}
+
+// O gap é o da Tela (16): o conteúdo do passo vive num bloco só para o passo todo deslizar junto.
+const estilos = StyleSheet.create({ flex: { flex: 1 }, passo: { gap: 16 } });

@@ -1,11 +1,13 @@
-import { Bookmark, Heart, MessageCircle, Repeat, type LucideIcon } from 'lucide-react-native';
+import { Bookmark, Heart, MessageCircle, Repeat } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { formatarNumero } from '../formatar';
+import Animated from 'react-native-reanimated';
 import { useTema } from '../tema/ProvedorTema';
 import { Avatar } from './Avatar';
 import { Camada } from './Camada';
+import { ContadorDeAcao } from './ContadorDeAcao';
 import type { TomEsfera } from './Esfera';
-import { Icone } from './Icone';
+import { IconeAlternado } from './Icone';
+import { ESCALA_TOQUE_LEVE, usePop } from './movimento';
 import { Texto } from './Texto';
 import { Tocavel } from './Tocavel';
 import { Verificado } from './Verificado';
@@ -48,6 +50,7 @@ export function Post(props: PostProps) {
           onPress={props.onAbrir}
           accessibilityRole="button"
           accessibilityLabel={`${nome}${verificado ? ', verificado' : ''}, ${handle}, ${tempo}: ${texto}`}
+          escala={ESCALA_TOQUE_LEVE}
           style={estilos.corpo}
         >
           <View style={estilos.cabecalho}>
@@ -63,21 +66,21 @@ export function Post(props: PostProps) {
         </Tocavel>
         <View style={estilos.metricas}>
           <View style={estilos.acoes}>
-            <Metrica
+            <ContadorDeAcao
               icone={MessageCircle}
               valor={props.respostas}
               rotulo="respostas"
               onPress={props.onResponder}
             />
             {props.onRepostar && (
-              <Metrica
+              <ContadorDeAcao
                 icone={Repeat}
                 valor={props.reposts}
                 rotulo="reposts"
                 onPress={props.onRepostar}
               />
             )}
-            <Metrica
+            <ContadorDeAcao
               icone={Heart}
               valor={props.curtidas}
               rotulo="curtidas"
@@ -93,11 +96,7 @@ export function Post(props: PostProps) {
               accessibilityLabel={props.salvo ? 'Remover dos salvos' : 'Salvar'}
               accessibilityState={{ selected: !!props.salvo }}
             >
-              <Icone
-                icone={Bookmark}
-                tamanho={16}
-                cor={props.salvo ? 'destaqueTinta' : 'textoSuave'}
-              />
+              <IconeSalvo salvo={!!props.salvo} />
             </Tocavel>
           )}
         </View>
@@ -106,29 +105,19 @@ export function Post(props: PostProps) {
   );
 }
 
-function Metrica(p: {
-  icone: LucideIcon;
-  valor: number;
-  rotulo: string;
-  ativo?: boolean;
-  onPress?: () => void;
-}) {
-  // Curtida é informação viva: usa o destaque (docs/PLANO.md, regra de papéis de cor).
-  const cor = p.ativo ? 'destaqueTinta' : 'textoSuave';
+/** Marcador de salvar: muda de cor em fade e faz um pop ao ser salvo. */
+function IconeSalvo({ salvo }: { salvo: boolean }) {
+  const pop = usePop(salvo);
   return (
-    <Tocavel
-      onPress={p.onPress}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={`${formatarNumero(p.valor)} ${p.rotulo}`}
-      accessibilityState={{ selected: !!p.ativo }}
-      style={estilos.metrica}
-    >
-      <Icone icone={p.icone} tamanho={16} cor={cor} />
-      <Texto estilo="legenda" cor={cor}>
-        {formatarNumero(p.valor)}
-      </Texto>
-    </Tocavel>
+    <Animated.View style={pop}>
+      <IconeAlternado
+        icone={Bookmark}
+        tamanho={16}
+        cor="textoSuave"
+        corAtiva="destaqueTinta"
+        ativo={salvo}
+      />
+    </Animated.View>
   );
 }
 

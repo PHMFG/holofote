@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, Check, Ellipsis } from 'lucide-react-native';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type ScrollViewInstance } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import {
   chaves,
@@ -26,6 +27,8 @@ import { Icone } from '../../ui/Icone';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Verificado } from '../../ui/Verificado';
+import { useAnimacoes } from '../animacao/animacoes';
+import { ItemAnimado, useRegistroDeEntradas } from '../animacao/entradas';
 import { Balao, BalaoDigitando } from './Balao';
 import { TecladoEvitavel } from './TecladoEvitavel';
 
@@ -73,7 +76,12 @@ function textoEntrega(delta: number | undefined) {
   return `Entregue · relação ${delta > 0 ? '+' : ''}${valor}%`;
 }
 
-/** 04 · Mensagem direta: conversa com um personagem; as respostas chegam aos poucos pelo WS. */
+/**
+ * 04 · Mensagem direta: conversa com um personagem; as respostas chegam aos poucos pelo WS.
+ * Mensagem nova entra como balão: o do jogador sobe do compositor e cresce a partir do canto de
+ * baixo à direita, o do personagem cresce a partir do canto à esquerda. A conversa que abre já
+ * está no lugar, sem animar o histórico.
+ */
 export function TelaDM({ conversaId }: { conversaId: string }) {
   const cliente = useQueryClient();
   const { medidas } = useTema();
@@ -108,6 +116,9 @@ export function TelaDM({ conversaId }: { conversaId: string }) {
     () => montarItens(mensagens.data ?? [], mundo.data?.dia),
     [mensagens.data, mundo.data?.dia],
   );
+  const animacoes = useAnimacoes();
+  const idsDosItens = useMemo(() => itens.map((i) => i.chave), [itens]);
+  const entradas = useRegistroDeEntradas(idsDosItens, { novos: 'fim', cascataInicial: 0 });
   const ultimaMinha = useMemo(
     () => [...(mensagens.data ?? [])].reverse().find((m) => m.minha)?.id,
     [mensagens.data],
@@ -183,35 +194,54 @@ export function TelaDM({ conversaId }: { conversaId: string }) {
           )}
           {itens.map((item) =>
             item.tipo === 'separador' ? (
-              <View key={item.chave} style={estilos.separador}>
+              <ItemAnimado
+                key={item.chave}
+                registro={entradas}
+                id={item.chave}
+                comLayout={false}
+                comSaida={false}
+                style={estilos.separador}
+              >
                 <Texto estilo="mini" cor="textoSuave">
                   {item.texto}
                 </Texto>
-              </View>
+              </ItemAnimado>
             ) : (
               <Fragment key={item.chave}>
-                <View style={item.trocaDeLado && estilos.trocaDeLado}>
+                <ItemAnimado
+                  registro={entradas}
+                  id={item.chave}
+                  tipoDeNovo={item.mensagem.minha ? 'balaoMeu' : 'balaoDela'}
+                  comLayout={false}
+                  comSaida={false}
+                  style={[
+                    item.trocaDeLado && estilos.trocaDeLado,
+                    item.mensagem.minha ? estilos.origemDireita : estilos.origemEsquerda,
+                  ]}
+                >
                   <Balao
                     texto={item.mensagem.texto}
                     minha={item.mensagem.minha}
                     autor={item.mensagem.minha ? 'Você' : nome}
                   />
-                </View>
+                </ItemAnimado>
                 {ultimoEnvio?.id === item.mensagem.id && ultimaMinha === item.mensagem.id && (
-                  <View style={estilos.entrega} accessible>
+                  <Animated.View
+                    entering={animacoes.deSubida(180)}
+                    style={estilos.entrega}
+                    accessible
+                  >
                     <Icone icone={Check} tamanho={12} cor="destaqueTinta" traco={2} />
                     <Texto estilo="legenda" cor="destaqueTinta">
                       {textoEntrega(ultimoEnvio.delta)}
                     </Texto>
-                  </View>
+                  </Animated.View>
                 )}
               </Fragment>
             ),
           )}
           {(digitando ?? []).map((p) => (
-            <View key={p.id} style={estilos.trocaDeLado}>
-              <BalaoDigitando nome={p.nome} />
-            </View>
+            <BalaoDigitando key={p.id} nome={p.nome} style={estilos.trocaDeLado} />
           ))}
         </ScrollView>
       </Tela>
@@ -282,6 +312,8 @@ const estilos = StyleSheet.create({
   mensagens: { paddingTop: 18, paddingBottom: 8, gap: 6 },
   separador: { alignItems: 'center', paddingBottom: 8 },
   trocaDeLado: { paddingTop: 8 },
+  origemDireita: { transformOrigin: 'right bottom' },
+  origemEsquerda: { transformOrigin: 'left bottom' },
   entrega: {
     flexDirection: 'row',
     alignItems: 'center',

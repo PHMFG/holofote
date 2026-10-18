@@ -2,10 +2,12 @@ import { router } from 'expo-router';
 import { ChevronRight, MessageSquare } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import Svg, { Line } from 'react-native-svg';
 import { tratarErroDeAcao } from '../../acoes/erros';
 import { useAbrirConversa, useRelacoes } from '../../api/consultas';
 import { useTema } from '../../tema/ProvedorTema';
+import { Aparecer } from '../../ui/Aparecer';
 import { Avatar } from '../../ui/Avatar';
 import { BotaoSuave } from '../../ui/BotaoSuave';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -18,6 +20,8 @@ import { Segmentado, type OpcaoSegmentado } from '../../ui/Segmentado';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { Tocavel } from '../../ui/Tocavel';
+import { DURACAO, MOLA, useMovimento } from '../../ui/movimento';
+import { Troca } from '../perfil/efeitos';
 import { primeiroNome } from '../../formatar';
 import { separarDia } from '../personagem/memorias';
 import { Grafo } from './Grafo';
@@ -70,24 +74,32 @@ export function TelaRelacoes() {
 
   return (
     <Tela cabecalho={cabecalho} gap={12}>
-      <Segmentado opcoes={FILTROS} valor={filtro} onMudar={setFiltro} rotulo="Filtrar relações" />
-      <Grafo
-        jogador={relacoes.data.jogador}
-        nos={nos}
-        selecionadoId={selecionado?.personagem.id ?? null}
-        onSelecionar={setSelecionadoId}
-        vazio={VAZIO[filtro]}
-      />
-      <Legenda />
+      <Aparecer indice={0}>
+        <Segmentado opcoes={FILTROS} valor={filtro} onMudar={setFiltro} rotulo="Filtrar relações" />
+      </Aparecer>
+      <Aparecer indice={1} modo="fade">
+        <Grafo
+          jogador={relacoes.data.jogador}
+          nos={nos}
+          selecionadoId={selecionado?.personagem.id ?? null}
+          onSelecionar={setSelecionadoId}
+          vazio={VAZIO[filtro]}
+        />
+      </Aparecer>
+      <Aparecer indice={3}>
+        <Legenda />
+      </Aparecer>
       {selecionado ? (
-        <CartaoSelecionado no={selecionado} />
+        <CartaoSelecionado key={selecionado.personagem.id} no={selecionado} />
       ) : (
         nos.length > 0 && (
-          <Cartao>
-            <Texto cor="textoSuave" style={estilos.centro}>
-              Toque num nome para ver a relação e o que a pessoa lembra de você.
-            </Texto>
-          </Cartao>
+          <Troca chave="dica">
+            <Cartao>
+              <Texto cor="textoSuave" style={estilos.centro}>
+                Toque num nome para ver a relação e o que a pessoa lembra de você.
+              </Texto>
+            </Cartao>
+          </Troca>
         )
       )}
     </Tela>
@@ -138,6 +150,7 @@ function Legenda() {
 /** Cartão do personagem tocado (Figma 57:1782): relação, memórias, perfil e mensagem. */
 function CartaoSelecionado({ no }: { no: NoDoMapa }) {
   const abrirConversa = useAbrirConversa();
+  const { reduzido, reduceMotion } = useMovimento();
   const { personagem, relacao, lembra } = no;
   const nome = primeiroNome(personagem.nome);
 
@@ -147,65 +160,79 @@ function CartaoSelecionado({ no }: { no: NoDoMapa }) {
       onError: tratarErroDeAcao,
     });
 
+  // O cartão sobe de baixo com mola ao tocar num nó; trocar de nó refaz a subida.
+  const entrada = reduzido
+    ? FadeIn.duration(DURACAO.rapida).reduceMotion(reduceMotion)
+    : FadeInDown.springify()
+        .damping(MOLA.suave.damping)
+        .stiffness(MOLA.suave.stiffness)
+        .withInitialValues({ opacity: 0, transform: [{ translateY: 36 }] })
+        .reduceMotion(reduceMotion);
+
   return (
-    <Cartao style={estilos.selecionado} accessibilityLiveRegion="polite">
-      <View style={estilos.cabecalhoSelecionado}>
-        <Tocavel
-          onPress={() => router.push(`/personagem/${personagem.id}`)}
-          accessibilityRole="button"
-          accessibilityLabel={`Ver perfil de ${personagem.nome}, ${relacao.rotulo}, ${relacao.afinidade}%`}
-          style={({ pressed }) => [estilos.perfil, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Avatar iniciais={personagem.iniciais} tom={personagem.tomAvatar} />
-          <View style={estilos.textos}>
-            <Texto estilo="corpoForte" numberOfLines={1}>
-              {personagem.nome}
-            </Texto>
-            <Texto
-              estilo="legenda"
-              cor={relacao.afinidade >= LIMITE_PROXIMO ? 'destaqueTinta' : 'textoSuave'}
-              numberOfLines={1}
-            >
-              {relacao.rotulo} · {relacao.afinidade}%
-            </Texto>
-          </View>
-          <Icone icone={ChevronRight} tamanho={16} cor="textoSuave" />
-        </Tocavel>
-        <BotaoSuave
-          icone={MessageSquare}
-          rotulo={`Mandar mensagem para ${nome}`}
-          disabled={abrirConversa.isPending}
-          onPress={mandarMensagem}
-        />
-      </View>
-      <Camada cor="superficie2" sombra="afundado" raio={16} style={estilos.memoria}>
-        <Texto estilo="mini" cor="textoSuave" accessibilityRole="header">
-          O que {nome} lembra de você
-        </Texto>
-        {lembra.length === 0 ? (
-          <Texto estilo="legenda" cor="textoSuave">
-            Ainda não lembra de nada sobre você.
-          </Texto>
-        ) : (
-          lembra.map((fato, i) => {
-            const { dia, texto } = separarDia(fato);
-            return (
-              <View
-                key={`${i}-${fato}`}
-                style={estilos.fato}
-                accessible
-                accessibilityLabel={dia ? `${dia}: ${texto}` : texto}
+    <Animated.View
+      entering={entrada}
+      exiting={FadeOut.duration(DURACAO.instante).reduceMotion(reduceMotion)}
+    >
+      <Cartao style={estilos.selecionado} accessibilityLiveRegion="polite">
+        <View style={estilos.cabecalhoSelecionado}>
+          <Tocavel
+            onPress={() => router.push(`/personagem/${personagem.id}`)}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver perfil de ${personagem.nome}, ${relacao.rotulo}, ${relacao.afinidade}%`}
+            style={({ pressed }) => [estilos.perfil, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Avatar iniciais={personagem.iniciais} tom={personagem.tomAvatar} />
+            <View style={estilos.textos}>
+              <Texto estilo="corpoForte" numberOfLines={1}>
+                {personagem.nome}
+              </Texto>
+              <Texto
+                estilo="legenda"
+                cor={relacao.afinidade >= LIMITE_PROXIMO ? 'destaqueTinta' : 'textoSuave'}
+                numberOfLines={1}
               >
-                {dia && <Rotulo texto={dia} variante="data" />}
-                <Texto estilo="legenda" style={estilos.textoFato}>
-                  {texto}
-                </Texto>
-              </View>
-            );
-          })
-        )}
-      </Camada>
-    </Cartao>
+                {relacao.rotulo} · {relacao.afinidade}%
+              </Texto>
+            </View>
+            <Icone icone={ChevronRight} tamanho={16} cor="textoSuave" />
+          </Tocavel>
+          <BotaoSuave
+            icone={MessageSquare}
+            rotulo={`Mandar mensagem para ${nome}`}
+            disabled={abrirConversa.isPending}
+            onPress={mandarMensagem}
+          />
+        </View>
+        <Camada cor="superficie2" sombra="afundado" raio={16} style={estilos.memoria}>
+          <Texto estilo="mini" cor="textoSuave" accessibilityRole="header">
+            O que {nome} lembra de você
+          </Texto>
+          {lembra.length === 0 ? (
+            <Texto estilo="legenda" cor="textoSuave">
+              Ainda não lembra de nada sobre você.
+            </Texto>
+          ) : (
+            lembra.map((fato, i) => {
+              const { dia, texto } = separarDia(fato);
+              return (
+                <View
+                  key={`${i}-${fato}`}
+                  style={estilos.fato}
+                  accessible
+                  accessibilityLabel={dia ? `${dia}: ${texto}` : texto}
+                >
+                  {dia && <Rotulo texto={dia} variante="data" />}
+                  <Texto estilo="legenda" style={estilos.textoFato}>
+                    {texto}
+                  </Texto>
+                </View>
+              );
+            })
+          )}
+        </Camada>
+      </Cartao>
+    </Animated.View>
   );
 }
 

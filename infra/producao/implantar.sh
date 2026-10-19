@@ -6,7 +6,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-HOST=servidor
+# Alias SSH do servidor; fora de casa use SSH_HOST=<nome no Tailscale>.
+HOST="${SSH_HOST:-servidor}"
 DESTINO='~/holofote'
 
 ssh "$HOST" "mkdir -p $DESTINO/codigo $DESTINO/segredos $DESTINO/atualizacoes && chmod 700 $DESTINO/segredos"

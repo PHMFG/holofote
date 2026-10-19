@@ -15,7 +15,7 @@ if [[ -z "${EXPO_PUBLIC_API_URL:-}" ]]; then
   exit 1
 fi
 
-HOST_SSH="servidor"
+HOST_SSH="${SSH_HOST:-servidor}"
 BASE_REMOTA="holofote/atualizacoes"
 export LANG="${LANG:-en_US.UTF-8}"
 

@@ -112,10 +112,15 @@ export const usePost = (id: string) =>
     queryFn: () => requisitar(`/posts/${id}`, { schema: Post }),
   });
 
+/**
+ * Conversa de um post. O tempo real atualiza na hora; com a tela aberta ela também relê a cada
+ * 10 s, para a resposta aparecer mesmo se o socket cair no celular (rede móvel, segundo plano).
+ */
 export const useThread = (id: string) =>
   useQuery({
     queryKey: chaves.thread(id),
     queryFn: () => requisitar(`/posts/${id}/respostas`, { schema: RespostaThread }),
+    refetchInterval: 10_000,
   });
 
 export const useConversas = () =>

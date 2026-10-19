@@ -43,12 +43,19 @@ import { gerar } from '../infra/ia';
 import { publicarSemFalha } from '../infra/publicador';
 import { aplicarSugestaoDeRelacao, lembrar, type Executor } from '../infra/relacoes';
 
-/** A primeira reação chega em até meio minuto; as outras mantêm a distância que a IA escolheu. */
-export const PRIMEIRA_REACAO_ATE_SEG = 30;
+/** A primeira reação chega logo depois que a IA escreve: o "digitando" emenda até ela. */
+export const PRIMEIRA_REACAO_SEG = 8;
+/** As seguintes mantêm a ordem e o ritmo que a IA escolheu, comprimidos para o jogador ver. */
+export const RITMO_DAS_SEGUINTES = 0.4;
+/** Nenhuma reação passa de três minutos depois da IA. */
+export const ULTIMA_REACAO_ATE_SEG = 180;
 
+/** Atraso de entrega (ms, a partir de agora) da reação que a IA marcou para `atrasoSeg`. */
 export function atrasoDaReacao(atrasoSeg: number, primeiraSeg: number): number {
-  const adiantamento = Math.max(0, primeiraSeg - PRIMEIRA_REACAO_ATE_SEG);
-  return (atrasoSeg - adiantamento) * 1000;
+  const depoisDaPrimeira = Math.max(0, atrasoSeg - primeiraSeg) * RITMO_DAS_SEGUINTES;
+  return Math.round(
+    Math.min(ULTIMA_REACAO_ATE_SEG, PRIMEIRA_REACAO_SEG + depoisDaPrimeira) * 1000,
+  );
 }
 
 export interface PedidoDiretor {

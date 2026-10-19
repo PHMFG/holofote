@@ -8,6 +8,7 @@
     "ios": "expo run:ios --device \"iPhone 16e\"",
     "prebuild": "expo prebuild --platform ios --clean",
     "typecheck": "tsc --noEmit",
+    "instalar-iphone": "bash scripts/instalar-iphone.sh",
     "publicar": "bash scripts/publicar-atualizacao.sh",
     "test": "jest"
   },

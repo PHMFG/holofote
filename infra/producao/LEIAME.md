@@ -19,6 +19,9 @@ Docker e Tailscale sobem com o servidor.
 
 Os segredos são gerados no próprio servidor ou copiados por `scp`, nunca passam pelo git.
 
+Fora de casa, o Mac alcança o servidor pelo Tailscale: o `~/.ssh/config` tem o atalho
+`servidor-ts` (seu-servidor.exemplo.ts.net). Rode os scripts abaixo com `SSH_HOST=servidor-ts`.
+
 ## Tarefas do dia a dia (do Mac, na raiz do repositório)
 
 Mudou o backend (API, worker, banco):

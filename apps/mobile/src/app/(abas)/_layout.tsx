@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErroDaApi } from '../../api/cliente';
 import { useAlertas, useMundo } from '../../api/consultas';
 import { useTema } from '../../tema/ProvedorTema';
+import { useAbrirNovidades } from '../../telas/novidades/useAbrirNovidades';
 import { useAbrirResumoDoDia } from '../../telas/resumo/useAbrirResumoDoDia';
 import { BarraDeAbas } from '../../ui/BarraDeAbas';
 import { EstadoTela } from '../../ui/EstadoTela';
@@ -56,6 +57,7 @@ export default function LayoutAbas() {
   const { reduzido } = useMovimento();
   // Primeira visita de cada dia do mundo: o resumo da manhã abre sozinho.
   useAbrirResumoDoDia();
+  useAbrirNovidades();
 
   if (mundo.error instanceof ErroDaApi && mundo.error.codigo === 'nao_encontrado') {
     return <Redirect href="/criar-mundo" />;

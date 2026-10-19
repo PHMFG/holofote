@@ -19,6 +19,14 @@ HOST_SSH="${SSH_HOST:-servidor}"
 BASE_REMOTA="holofote/atualizacoes"
 export LANG="${LANG:-en_US.UTF-8}"
 
+# Toda atualização leva uma nota nova (src/novidades.ts): o app abre mostrando o que mudou.
+NOTA="$(grep -m1 -oE "id: '[^']+'" src/novidades.ts | sed -E "s/id: '([^']+)'/\1/")"
+ULTIMA_NOTA="$(ssh "$HOST_SSH" "cat '$BASE_REMOTA/ultima-nota' 2>/dev/null" || true)"
+if [[ -z "$NOTA" || "$NOTA" == "$ULTIMA_NOTA" ]]; then
+  echo "Adicione no topo de src/novidades.ts uma entrada nova com o que mudou (a última, $NOTA, já foi publicada)." >&2
+  exit 1
+fi
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -45,6 +53,7 @@ echo "Enviando para $HOST_SSH:~/$DESTINO ..."
 ssh "$HOST_SSH" "mkdir -p '$TEMPORARIO'"
 rsync -az --delete -e ssh "$TMP/" "$HOST_SSH:$TEMPORARIO/"
 ssh "$HOST_SSH" "mv '$TEMPORARIO' '$BASE_REMOTA/$RUNTIME/$AGORA'"
+ssh "$HOST_SSH" "printf '%s' '$NOTA' > '$BASE_REMOTA/ultima-nota'"
 
 ID="$(shasum -a 256 "$TMP/metadata.json" | cut -c1-32)"
 echo "Atualização publicada."

@@ -65,6 +65,15 @@ function PilhaDoApp() {
         A folha "Sem energia" é um modal transparente. O fade nativo leva junto o escurecer da
         rota; a própria Folha sobe na mola (SlideInDown) e fecha arrastando para baixo.
       */}
+      {/* Novidades do app: folha de baixo como a de energia. */}
+      <Stack.Screen
+        name="novidades"
+        options={{
+          presentation: 'transparentModal',
+          animation: reduzido ? 'none' : 'fade',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
       <Stack.Screen
         name="sem-energia"
         options={{

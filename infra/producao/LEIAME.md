@@ -37,6 +37,9 @@ cd apps/mobile && EXPO_PUBLIC_API_URL=https://seu-servidor.exemplo.ts.net pnpm p
 ```
 
 O celular baixa a versão nova ao abrir o app e a aplica quando o jogador sai e volta.
+Antes de publicar, ponha uma entrada no topo de `apps/mobile/src/novidades.ts` com o que mudou,
+em frases curtas para o jogador: o app mostra essas notas uma vez, na folha "Novidades", e elas
+ficam no perfil.
 
 Mudou algo nativo (biblioteca com código nativo, plugin, SDK, ícone): suba o `runtimeVersion` em
 `apps/mobile/app.config.ts`, gere um `.ipa` novo e reinstale pelo AltStore. Atualizações por ar só

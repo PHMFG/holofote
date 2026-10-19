@@ -9,6 +9,7 @@ import {
   Globe,
   Heart,
   LayoutGrid,
+  Megaphone,
   RotateCcw,
   Sparkles,
   Zap,
@@ -364,6 +365,13 @@ export function TelaPerfil() {
             }
             navega
             onPress={() => router.push('/plus')}
+          />
+          <LinhaConta
+            icone={Megaphone}
+            titulo="Notas de atualização"
+            subtitulo="Tudo o que mudou em cada versão"
+            navega
+            onPress={() => router.push({ pathname: '/novidades', params: { todas: '1' } })}
           />
           <LinhaConta
             icone={Zap}

@@ -1,0 +1,10 @@
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.turbo
+apps/mobile/ios
+apps/mobile/android
+apps/mobile/.expo
+docs/telas

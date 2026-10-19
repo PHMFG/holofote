@@ -12,6 +12,17 @@ describe('lerConfig', () => {
     expect(lerConfig({}).HOST).toBe('127.0.0.1');
   });
 
+  it('atualizações por ar: pasta padrão e URL pública opcional', () => {
+    const padrao = lerConfig({});
+    expect(padrao.ATUALIZACOES_DIR).toBe('./atualizacoes');
+    expect(padrao.URL_PUBLICA).toBeUndefined();
+    expect(lerConfig({ URL_PUBLICA: '' }).URL_PUBLICA).toBeUndefined();
+    expect(lerConfig({ URL_PUBLICA: 'https://host.ts.net' }).URL_PUBLICA).toBe(
+      'https://host.ts.net',
+    );
+    expect(() => lerConfig({ URL_PUBLICA: 'nao-e-url' })).toThrow();
+  });
+
   it('falha alto com URL inválida', () => {
     expect(() => lerConfig({ DATABASE_URL: 'nao-e-url' })).toThrow();
   });

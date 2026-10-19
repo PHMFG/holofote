@@ -122,6 +122,20 @@ describe('autenticação e conta', () => {
     expect(r.json()).toMatchObject({ erro: 'nao_autenticado' });
   });
 
+  it('as rotas de atualização do app não pedem token', async () => {
+    const manifesto = await app.inject({
+      method: 'GET',
+      url: '/v1/atualizacoes/manifesto',
+      headers: { 'expo-platform': 'android' },
+    });
+    expect(manifesto.statusCode).toBe(400);
+    const arquivo = await app.inject({
+      method: 'GET',
+      url: '/v1/atualizacoes/arquivo?caminho=../x',
+    });
+    expect(arquivo.statusCode).toBe(400);
+  });
+
   it('Plus placebo dobra a energia máxima', async () => {
     const { token } = await pedir(null, 'POST', '/v1/auth/anonimo', {
       aparelhoId: crypto.randomUUID(),

@@ -16,6 +16,10 @@ const esquema = z
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     /** Segredo do JWT; obrigatório fora do dev e dos testes. */
     JWT_SEGREDO: z.string().min(32).optional(),
+    /** Pasta das atualizações por ar: <dir>/<runtimeVersion>/<timestamp>/ (ver rotas/atualizacoes.ts). */
+    ATUALIZACOES_DIR: z.string().min(1).default('./atualizacoes'),
+    /** Origem pública da API (ex.: https://host.ts.net), usada nas URLs absolutas dos arquivos. */
+    URL_PUBLICA: z.preprocess((v) => (v === '' ? undefined : v), z.url().optional()),
   })
   .transform((c) => ({
     ...c,

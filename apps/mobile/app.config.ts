@@ -37,6 +37,18 @@ function pluginSplash(): [string, typeof splash][] {
   }
 }
 
+// Atualizações por ar (expo-updates), servidas pela nossa API (protocolo Expo Updates v1, sem EAS):
+// ver apps/server/src/rotas/atualizacoes.ts e scripts/publicar-atualizacao.sh. Só ligam quando a
+// URL da API está definida no build; os builds locais de desenvolvimento ficam como estavam.
+const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
+const atualizacoes: ExpoConfig['updates'] = apiUrl
+  ? {
+      url: `${apiUrl}/v1/atualizacoes/manifesto`,
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+    }
+  : { enabled: false };
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Holofote',
@@ -46,6 +58,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   platforms: ['ios'],
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
+  // Texto fixo: só muda quando o código nativo muda (novo módulo, plugin ou SDK). Nesse caso,
+  // suba o número e instale um .ipa novo; atualizações por ar só chegam a builds do mesmo valor.
+  runtimeVersion: '1',
+  updates: atualizacoes,
   icon: './assets/icon.png',
   ios: {
     // Provisório: ver docs/DECISOES.md

@@ -13,6 +13,12 @@ import type { Contexto } from './contexto';
 import { tokenDoCabecalho, verificarToken } from './infra/auth';
 import { erroParaLog } from './infra/banco';
 import { ErroApi } from './infra/erros';
+import {
+  rotasAtualizacoes,
+  ROTA_ARQUIVO,
+  ROTA_MANIFESTO,
+  type OpcoesAtualizacoes,
+} from './rotas/atualizacoes';
 import { rotasConta } from './rotas/conta';
 import { rotasDev } from './rotas/dev';
 import { rotasEventos } from './rotas/eventos';
@@ -40,11 +46,13 @@ export interface Checadores {
 const estado = z.enum(['ok', 'erro']);
 const respostaSaude = z.object({ ok: z.boolean(), postgres: estado, redis: estado });
 
-/** Rotas sem token: login, saúde e o WebSocket (que lê o token da query). */
+/** Rotas sem token: login, saúde, atualizações do app e o WebSocket (que lê o token da query). */
 const PUBLICAS = new Set([
   `/${VERSAO_API}/auth/anonimo`,
   `/${VERSAO_API}/saude`,
   `/${VERSAO_API}/tempo-real`,
+  ROTA_MANIFESTO,
+  ROTA_ARQUIVO,
 ]);
 
 export interface OpcoesApp {
@@ -53,6 +61,8 @@ export interface OpcoesApp {
   limiteChecagemMs?: number;
   /** Sem contexto, só a rota de saúde existe (testes da saúde). */
   ctx?: Contexto;
+  /** Atualizações por ar; o padrão vem da config do contexto (ou ./atualizacoes sem contexto). */
+  atualizacoes?: OpcoesAtualizacoes;
 }
 
 /** Caminho sem a query string: o WebSocket leva o token em `?token=` e ele não pode ir ao log. */
@@ -72,7 +82,7 @@ export function serializarPedido(req: PedidoNoLog) {
 
 export function construirApp(
   checadores: Checadores,
-  { fastify = {}, limiteChecagemMs = 2000, ctx }: OpcoesApp = {},
+  { fastify = {}, limiteChecagemMs = 2000, ctx, atualizacoes }: OpcoesApp = {},
 ) {
   const logger =
     fastify.logger && typeof fastify.logger === 'object'
@@ -132,6 +142,15 @@ export function construirApp(
       ]);
       const ok = postgres === 'ok' && redis === 'ok';
       return reply.code(ok ? 200 : 503).send({ ok, postgres, redis });
+    },
+  );
+
+  // Em todos os ambientes e sem token: o app consulta antes do login.
+  rotasAtualizacoes(
+    app,
+    atualizacoes ?? {
+      dir: ctx?.config.ATUALIZACOES_DIR ?? './atualizacoes',
+      urlPublica: ctx?.config.URL_PUBLICA,
     },
   );
 

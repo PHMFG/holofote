@@ -1,0 +1,101 @@
+# Holofote em produção no servidor de casa (ver infra/producao/LEIAME.md).
+#   docker compose -f infra/producao/docker-compose.yml --env-file ../segredos/compose.env up -d --build
+# Nada fica exposto na rede: a API escuta em 127.0.0.1:3333 e o Tailscale Funnel publica em HTTPS.
+name: holofote
+
+x-imagem: &imagem
+  build:
+    context: ../..
+    dockerfile: infra/producao/Dockerfile
+  image: holofote-backend
+  restart: unless-stopped
+  environment: &ambiente
+    TZ: UTC
+    DATABASE_URL: postgres://holofote:${POSTGRES_PASSWORD:?}@postgres:5432/holofote
+    REDIS_URL: redis://redis:6379
+    LOG_LEVEL: info
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: holofote
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: holofote
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U holofote -d holofote']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    # BullMQ exige noeviction.
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Aplica as migrações e sai; a API só sobe depois que ele termina bem.
+  migrar:
+    <<: *imagem
+    restart: 'no'
+    working_dir: /app/packages/db
+    command: ['pnpm', 'exec', 'tsx', 'src/migrar.ts']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *imagem
+    working_dir: /app/apps/server
+    command: ['pnpm', 'exec', 'tsx', 'src/index.ts']
+    environment:
+      <<: *ambiente
+      AMBIENTE: producao
+      HOST: 0.0.0.0
+      PORT: '3333'
+      JWT_SEGREDO: ${JWT_SEGREDO:?}
+      URL_PUBLICA: ${URL_PUBLICA:-}
+      ATUALIZACOES_DIR: /atualizacoes
+    ports:
+      - 127.0.0.1:3333:3333
+    volumes:
+      - ../../../atualizacoes:/atualizacoes:ro
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *imagem
+    working_dir: /app/apps/worker
+    command: ['pnpm', 'exec', 'tsx', 'src/index.ts']
+    # Chave e modelos da IA: cópia do apps/worker/.env do Mac (nunca no git). O environment
+    # abaixo tem precedência e troca os endereços de banco e Redis pelos dos containers.
+    env_file: ../../../segredos/worker.env
+    environment:
+      <<: *ambiente
+      # O .env do Mac usa o provedor falso (desenvolvimento); aqui é sempre o OpenCode Go.
+      LLM_PROVIDER: opencode-go
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres:
+  redis:

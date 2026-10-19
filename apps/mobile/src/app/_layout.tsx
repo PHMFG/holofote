@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { ErroDaApi } from '../api/cliente';
 import { useMundo } from '../api/consultas';
 import { ProvedorTempoReal } from '../api/tempoReal';
+import { useAplicarAtualizacao } from '../atualizacoes';
 import { ProvedorTema, useTema } from '../tema/ProvedorTema';
 import { useMovimento } from '../ui/movimento';
 
@@ -77,6 +78,7 @@ function PilhaDoApp() {
 }
 
 export default function LayoutRaiz() {
+  useAplicarAtualizacao();
   return (
     <QueryClientProvider client={clienteConsultas}>
       <ProvedorTema>

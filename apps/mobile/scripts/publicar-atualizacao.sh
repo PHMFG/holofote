@@ -5,7 +5,7 @@
 #
 # Exporta o app para iOS, junta o expoConfig.json e envia por rsync/ssh ao host `servidor`, em
 # ~/holofote/atualizacoes/<runtimeVersion>/<timestamp>/. A API serve a pasta de maior timestamp
-# (apps/server/src/rotas/atualizacoes.ts); o app a baixa ao abrir e a usa na abertura seguinte.
+# (apps/server/src/rotas/atualizacoes.ts); o app a baixa ao abrir e a aplica ao voltar para ele.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -51,4 +51,4 @@ echo "Atualização publicada."
 echo "  runtime:  $RUNTIME"
 echo "  hora:     $AGORA ($(date -r "$AGORA" '+%Y-%m-%d %H:%M:%S'))"
 echo "  id:       ${ID:0:8}-${ID:8:4}-${ID:12:4}-${ID:16:4}-${ID:20:12}"
-echo "Abra o app duas vezes: a primeira baixa, a segunda já roda a versão nova."
+echo "No celular: abra o app (baixa a versão nova) e saia e volte para ele (aplica)."

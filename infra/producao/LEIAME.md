@@ -1,13 +1,16 @@
 # Holofote em produção (servidor de casa)
 
-O backend roda no `servidor` (alias SSH `servidor`, Debian 13) em Docker e fica público em
-HTTPS pelo Tailscale Funnel:
+O backend roda num servidor Linux de casa (Debian), em Docker, e fica público em HTTPS pelo
+Tailscale Funnel. O endereço público e os aliases SSH ficam em `infra/producao/.env`, fora do git
+(formato em [`.env.example`](.env.example)):
 
-- API: https://seu-servidor.exemplo.ts.net/v1 (saúde em `/v1/saude`)
-- Atualizações do app: https://seu-servidor.exemplo.ts.net/v1/atualizacoes/manifesto
+- API: `<URL_PUBLICA>/v1` (saúde em `/v1/saude`)
+- Atualizações do app: `<URL_PUBLICA>/v1/atualizacoes/manifesto`
 
 Nada abre porta no roteador. Os containers reiniciam sozinhos (`restart: unless-stopped`), e
-Docker e Tailscale sobem com o servidor.
+Docker e Tailscale sobem com o servidor. Para preparar um servidor novo (Docker e Tailscale dos
+repositórios oficiais): `infra/producao/preparar-servidor.sh`, depois `tailscale up` e
+`tailscale funnel --bg 3333` nele.
 
 ## Pastas no servidor
 
@@ -19,8 +22,8 @@ Docker e Tailscale sobem com o servidor.
 
 Os segredos são gerados no próprio servidor ou copiados por `scp`, nunca passam pelo git.
 
-Fora de casa, o Mac alcança o servidor pelo Tailscale: o `~/.ssh/config` tem o atalho
-`servidor-ts` (seu-servidor.exemplo.ts.net). Rode os scripts abaixo com `SSH_HOST=servidor-ts`.
+Fora de casa, o Mac alcança o servidor pelo Tailscale: tenha no `~/.ssh/config` um segundo alias
+apontando para o nome do servidor no Tailscale e rode os scripts com `SSH_HOST=<esse alias>`.
 
 ## Tarefas do dia a dia (do Mac, na raiz do repositório)
 
@@ -33,17 +36,17 @@ infra/producao/implantar.sh
 Mudou o app (telas, lógica, textos, imagens), sem módulo nativo novo:
 
 ```bash
-cd apps/mobile && EXPO_PUBLIC_API_URL=https://seu-servidor.exemplo.ts.net pnpm publicar
+cd apps/mobile && pnpm publicar
 ```
 
-O celular baixa a versão nova ao abrir o app e a aplica quando o jogador sai e volta.
-Antes de publicar, ponha uma entrada no topo de `apps/mobile/src/novidades.ts` com o que mudou,
-em frases curtas para o jogador: o app mostra essas notas uma vez, na folha "Novidades", e elas
-ficam no perfil.
+O celular baixa a versão nova ao abrir o app e a aplica quando o jogador sai e volta. Antes de
+publicar, ponha uma entrada no topo de `apps/mobile/src/novidades.ts` com o que mudou, em frases
+curtas para o jogador: o app abre mostrando essas notas uma vez, e o histórico fica no perfil. O
+`pnpm publicar` recusa publicar sem uma entrada nova.
 
 Mudou algo nativo (biblioteca com código nativo, plugin, SDK, ícone): suba o `runtimeVersion` em
-`apps/mobile/app.config.ts`, gere um `.ipa` novo e reinstale pelo AltStore. Atualizações por ar só
-chegam a builds com o mesmo runtime.
+`apps/mobile/app.config.ts` e instale de novo no iPhone (abaixo). Atualizações por ar só chegam a
+builds com o mesmo runtime.
 
 Trocar a chave da IA (depois de mudar `apps/worker/.env` no Mac):
 
@@ -51,21 +54,17 @@ Trocar a chave da IA (depois de mudar `apps/worker/.env` no Mac):
 infra/producao/implantar.sh --chave
 ```
 
-## Gerar o .ipa (AltStore)
+## Instalar no iPhone
 
 ```bash
-cd apps/mobile
-export LANG=en_US.UTF-8 EXPO_PUBLIC_API_URL=https://seu-servidor.exemplo.ts.net
-npx expo prebuild --platform ios --clean
-xcodebuild -workspace ios/Holofote.xcworkspace -scheme Holofote -configuration Release \
-  -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/Holofote.xcarchive archive \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
-mkdir -p build/Payload && cp -R build/Holofote.xcarchive/Products/Applications/*.app build/Payload/
-(cd build && zip -qry Holofote.ipa Payload)
+cd apps/mobile && pnpm instalar-iphone
 ```
 
-O `.ipa` sai sem assinatura; o AltStore assina com o Apple ID do jogador. Depois do release, rode
-`npx expo prebuild --platform ios --clean` sem a variável para voltar ao build do simulador.
+Compila em Release apontando para `URL_PUBLICA`, assina com o Apple ID do Xcode (conta grátis
+serve; `TEAM` em `infra/producao/.env`) e instala no iPhone ligado no cabo ou no mesmo Wi-Fi. Uma
+vez só: Xcode > Ajustes > Apple Accounts com o Apple ID, Modo de Desenvolvedor ligado no iPhone e
+o desenvolvedor autorizado em Ajustes > Geral > VPN e Gerenciamento de Dispositivos. Com conta
+grátis o app vale 7 dias: rode o mesmo comando para renovar (os dados ficam no servidor).
 
 ## Ver o que está acontecendo
 

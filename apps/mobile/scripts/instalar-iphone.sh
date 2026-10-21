@@ -7,12 +7,18 @@
 # Modo de Desenvolvedor ligado. Com conta grátis o app vale 7 dias: rode de novo para renovar.
 #
 # Variáveis opcionais: TEAM (ID do time, se o Xcode tiver mais de um), BUNDLE_ID (se o padrão já
-# estiver registrado por outra pessoa na Apple), EXPO_PUBLIC_API_URL (servidor; padrão o de casa).
+# estiver registrado por outra pessoa na Apple), EXPO_PUBLIC_API_URL (padrão: URL_PUBLICA de
+# infra/producao/.env).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source ../../infra/producao/config.sh
 
 export LANG=en_US.UTF-8
-export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://seu-servidor.exemplo.ts.net}"
+export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-${URL_PUBLICA:-}}"
+if [[ -z "$EXPO_PUBLIC_API_URL" ]]; then
+  echo "Defina URL_PUBLICA em infra/producao/.env (veja infra/producao/.env.example)." >&2
+  exit 1
+fi
 
 # Time de assinatura: o primeiro que o Xcode conhece, se não vier em TEAM.
 if [[ -z "${TEAM:-}" ]]; then

@@ -17,3 +17,20 @@ apps/mobile/android/
 apps/mobile/expo-env.d.ts
 
 .claude/worktrees/
+
+# Builds e assinaturas do iOS
+*.ipa
+*.xcarchive
+*.mobileprovision
+*.p12
+*.pem
+*.key
+
+# Editores e sistema
+.idea/
+.vscode/
+Thumbs.db
+*.tsbuildinfo
+
+# Configuração local do Claude Code
+.claude/settings.local.json

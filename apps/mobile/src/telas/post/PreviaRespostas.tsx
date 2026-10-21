@@ -140,6 +140,9 @@ const estilos = StyleSheet.create({
 });
 
 /** Comentário da prévia com as curtidas subindo junto com a idade da resposta. */
-function ComentarioDaPrevia({ post, ...props }: Omit<ComentarioProps, 'curtidas'> & { post: Post }) {
+function ComentarioDaPrevia({
+  post,
+  ...props
+}: Omit<ComentarioProps, 'curtidas'> & { post: Post }) {
   return <Comentario {...props} curtidas={useCurtidas(post)} />;
 }

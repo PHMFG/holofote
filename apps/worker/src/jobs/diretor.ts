@@ -53,9 +53,7 @@ export const ULTIMA_REACAO_ATE_SEG = 180;
 /** Atraso de entrega (ms, a partir de agora) da reação que a IA marcou para `atrasoSeg`. */
 export function atrasoDaReacao(atrasoSeg: number, primeiraSeg: number): number {
   const depoisDaPrimeira = Math.max(0, atrasoSeg - primeiraSeg) * RITMO_DAS_SEGUINTES;
-  return Math.round(
-    Math.min(ULTIMA_REACAO_ATE_SEG, PRIMEIRA_REACAO_SEG + depoisDaPrimeira) * 1000,
-  );
+  return Math.round(Math.min(ULTIMA_REACAO_ATE_SEG, PRIMEIRA_REACAO_SEG + depoisDaPrimeira) * 1000);
 }
 
 export interface PedidoDiretor {

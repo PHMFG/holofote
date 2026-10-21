@@ -6,3 +6,4 @@ apps/mobile/.expo
 packages/tokens/src/gerado.ts
 packages/tokens/figma/variaveis.json
 packages/db/drizzle/meta
+apps/mobile/build

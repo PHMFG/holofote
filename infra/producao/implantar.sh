@@ -5,8 +5,9 @@
 # apps/worker/.env (chave da IA) sem exibir nada. Depois disso só atualiza o código.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+source infra/producao/config.sh
 
-# Alias SSH do servidor; fora de casa use SSH_HOST=<nome no Tailscale>.
+# Alias SSH do servidor (infra/producao/.env); fora de casa use SSH_HOST=<alias pelo Tailscale>.
 HOST="${SSH_HOST:-servidor}"
 DESTINO='~/holofote'
 

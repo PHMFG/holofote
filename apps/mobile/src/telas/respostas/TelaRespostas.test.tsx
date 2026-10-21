@@ -21,8 +21,7 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success' },
 }));
 // Duas horas antes de tudo: as curtidas já terminaram de subir (packages/engine, curtidas.ts).
-const antes = (minutos: number) =>
-  new Date(Date.now() - (120 + minutos) * 60_000).toISOString();
+const antes = (minutos: number) => new Date(Date.now() - (120 + minutos) * 60_000).toISOString();
 
 const lua = personagem({
   nome: 'Lua Prado',

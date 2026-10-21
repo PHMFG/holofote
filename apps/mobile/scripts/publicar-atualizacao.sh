@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Publica uma atualização por ar (JS e assets) do app no servidor, sem EAS.
 #
-# Uso (de apps/mobile):  EXPO_PUBLIC_API_URL=https://host.ts.net pnpm publicar
+# Uso (de apps/mobile):  pnpm publicar   (endereço e alias SSH em infra/producao/.env)
 #
 # Exporta o app para iOS, junta o expoConfig.json e envia por rsync/ssh ao host `servidor`, em
 # ~/holofote/atualizacoes/<runtimeVersion>/<timestamp>/. A API serve a pasta de maior timestamp
@@ -9,9 +9,11 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+source ../../infra/producao/config.sh
 
-if [[ -z "${EXPO_PUBLIC_API_URL:-}" ]]; then
-  echo "Defina EXPO_PUBLIC_API_URL (a URL pública da API, a mesma do build instalado)." >&2
+export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-${URL_PUBLICA:-}}"
+if [[ -z "$EXPO_PUBLIC_API_URL" ]]; then
+  echo "Defina URL_PUBLICA em infra/producao/.env (a mesma URL do build instalado)." >&2
   exit 1
 fi
 

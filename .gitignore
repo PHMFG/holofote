@@ -18,6 +18,9 @@ apps/mobile/expo-env.d.ts
 
 .claude/worktrees/
 
+# Capturas do Maestro e das fases: ficam só na máquina (as do README estão em docs/assets)
+docs/telas/
+
 # Builds e assinaturas do iOS
 *.ipa
 *.xcarchive

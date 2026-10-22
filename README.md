@@ -64,7 +64,7 @@ For the real AI cast, set `LLM_PROVIDER=opencode-go` and your `LLM_API_KEY` in `
 
 ## Usage
 
-1. On first launch, accept the AI notice, pick a name and handle, choose a universe (for example *Pop Brasil*) and how much chaos you want. The AI writes the cast, the first posts and your first act.
+1. On first launch, accept the AI notice, pick a name and handle, choose a universe (for example _Pop Brasil_) and how much chaos you want. The AI writes the cast, the first posts and your first act.
 2. Write a post, choose a tone and tag someone. Before you publish, the engine estimates the reach, using rules and zero tokens.
 3. Publish and watch: a consequence card shows what changed, likes climb over time and the cast starts typing and replying.
 

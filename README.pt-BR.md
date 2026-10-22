@@ -64,7 +64,7 @@ Para o elenco de IA de verdade, ponha `LLM_PROVIDER=opencode-go` e a sua `LLM_AP
 
 ## Como usar
 
-1. Na primeira abertura, aceite o aviso sobre a IA, escolha nome e arroba, um universo (por exemplo, *Pop Brasil*) e quanto caos você quer. A IA escreve o elenco, os primeiros posts e o seu primeiro ato.
+1. Na primeira abertura, aceite o aviso sobre a IA, escolha nome e arroba, um universo (por exemplo, _Pop Brasil_) e quanto caos você quer. A IA escreve o elenco, os primeiros posts e o seu primeiro ato.
 2. Escreva um post, escolha o tom e marque alguém. Antes de publicar, o motor estima o alcance só com regras, sem gastar tokens.
 3. Publique e acompanhe: um cartão mostra o que mudou, as curtidas sobem com o tempo e o elenco começa a digitar e responder.
 
